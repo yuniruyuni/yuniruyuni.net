@@ -11,7 +11,7 @@
   "scripts": {
     "build": "run-p 'build:*'",
     "build:html": "mkdir -p dist && cp index.html dist/index.html",
-    "build:css": "tailwindcss build index.css -o dist/index.css",
+    "build:css": "NODE_ENV=production tailwindcss build -m index.css -o dist/index.css",
     "build:images": "mkdir -p dist && cp *.webp dist/"
   }
 }
