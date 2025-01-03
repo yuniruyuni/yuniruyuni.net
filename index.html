@@ -13,6 +13,19 @@
     <meta property="twitter:site" content="@yuniruyuni" />
     <link rel="stylesheet" href="index.css" />
     <title>yuniruyuni.net</title>
+    <script>
+        const timer = setTimeout(() => {
+            const target = document.querySelector("#content");
+            const top = target.getBoundingClientRect().top;
+            console.log(top);
+            window.scrollTo({ top: top, behavior: "smooth" });
+            console.log("Scroll to content");
+        }, 1000);
+
+        window.addEventListener("scroll", () => {
+            clearTimeout(timer);
+        });
+    </script>
 </head>
 <body class="min-h-screen">
     <div class="h-screen flex justify-center items-center">
@@ -20,7 +33,7 @@
         <h1 class="relative text-white text-center">yuniruyuni.net</h1>
     </div>
 
-    <div class="container mx-auto px-4 py-16">
+    <div id="content" class="container mx-auto px-4">
         <div class="bg-white bg-opacity-90 rounded-xl shadow-2xl p-8 max-w-4xl mx-auto">
             <header class="text-center mb-8">
                 <h2 class="text-4xl font-bold text-purple-800 mb-2">ゆにるユニ</h2>
