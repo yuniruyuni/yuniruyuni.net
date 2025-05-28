@@ -1,23 +1,24 @@
 {
-  "name": "yuniruyuni.net",
-  "type": "module",
-  "peerDependencies": {
-    "typescript": "^5.8.3"
-  },
-  "devDependencies": {
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "@types/bun": "latest",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "npm-run-all2": "^6.2.6",
-    "tailwindcss": "^4.1.7",
-    "@tailwindcss/cli": "^4.1.7"
-  },
-  "scripts": {
-    "build": "run-p 'build:*'",
-    "build:html": "bun run src/generate.ts",
-    "build:css": "NODE_ENV=production tailwindcss -m -i index.css -o dist/index.css",
-    "build:images": "mkdir -p dist && cp *.webp dist/ && cp favicon.ico dist/"
-  }
+	"name": "yuniruyuni.net",
+	"type": "module",
+	"peerDependencies": {
+		"typescript": "^5.8.3"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"@tailwindcss/cli": "^4.1.7",
+		"@types/bun": "latest",
+		"@types/react": "^18.3.12",
+		"@types/react-dom": "^18.3.1",
+		"npm-run-all2": "^6.2.6",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"tailwindcss": "^4.1.7"
+	},
+	"scripts": {
+		"build": "run-p 'build:*'",
+		"build:html": "bun run src/generate.ts",
+		"build:css": "NODE_ENV=production tailwindcss -m -i index.css -o dist/index.css",
+		"build:images": "mkdir -p dist && cp *.webp dist/ && cp favicon.ico dist/"
+	}
 }

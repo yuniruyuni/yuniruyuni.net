@@ -1,11 +1,11 @@
-import React from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
-import App from './components/App';
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import App from "./components/App";
 
 function generateHTML() {
-  const html = renderToStaticMarkup(React.createElement(App));
+	const html = renderToStaticMarkup(React.createElement(App));
 
-  const fullHTML = `<!DOCTYPE html>
+	const fullHTML = `<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -37,23 +37,23 @@ function generateHTML() {
 <body>${html}</body>
 </html>`;
 
-  return fullHTML;
+	return fullHTML;
 }
 
 async function build() {
-  try {
-    // Create dist directory
-    await Bun.write('dist/.gitkeep', '');
-    
-    // Generate HTML
-    const html = generateHTML();
-    await Bun.write('dist/index.html', html);
-    
-    console.log('Static HTML generated successfully!');
-  } catch (error) {
-    console.error('Error generating static HTML:', error);
-    process.exit(1);
-  }
+	try {
+		// Create dist directory
+		await Bun.write("dist/.gitkeep", "");
+
+		// Generate HTML
+		const html = generateHTML();
+		await Bun.write("dist/index.html", html);
+
+		console.log("Static HTML generated successfully!");
+	} catch (error) {
+		console.error("Error generating static HTML:", error);
+		process.exit(1);
+	}
 }
 
 build();
