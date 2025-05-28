@@ -1,7 +1,7 @@
-import type React from "react";
+import type { ReactNode } from "react";
 
 interface GuidelineListProps {
-	children: React.ReactNode;
+	children: ReactNode;
 }
 
 export default function GuidelineList({ children }: GuidelineListProps) {

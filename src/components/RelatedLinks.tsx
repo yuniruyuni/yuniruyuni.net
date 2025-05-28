@@ -1,4 +1,3 @@
-import type React from "react";
 import LinkButton from "./LinkButton";
 import TwitterLinks from "./TwitterLinks";
 

@@ -1,4 +1,3 @@
-import type React from "react";
 import FanArtGuidelines from "./FanArtGuidelines";
 import HeroSection from "./HeroSection";
 import ProfileSection from "./ProfileSection";

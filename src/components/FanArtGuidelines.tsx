@@ -1,4 +1,3 @@
-import type React from "react";
 import GuidelineItem from "./GuidelineItem";
 import GuidelineList from "./GuidelineList";
 import SectionHeader from "./SectionHeader";

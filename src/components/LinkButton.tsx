@@ -1,9 +1,9 @@
-import type React from "react";
+import type { ReactNode } from "react";
 import BaseButton from "./BaseButton";
 
 interface LinkButtonProps {
 	href: string;
-	children: React.ReactNode;
+	children: ReactNode;
 	variant?: "primary" | "purple" | "pink" | "pink-light" | "slate" | "green";
 	className?: string;
 }

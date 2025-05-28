@@ -1,8 +1,8 @@
 import clsx from "clsx";
-import type React from "react";
+import type { ReactNode } from "react";
 
 interface GuidelineItemProps {
-	children: React.ReactNode;
+	children: ReactNode;
 	bold?: boolean;
 	className?: string;
 }

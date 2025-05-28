@@ -19,9 +19,11 @@
 		"skipLibCheck": true,
 		"noFallthroughCasesInSwitch": true,
 
-		// Some stricter flags (disabled by default)
-		"noUnusedLocals": false,
-		"noUnusedParameters": false,
-		"noPropertyAccessFromIndexSignature": false
+		// Stricter flags enabled for better code quality
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"noImplicitReturns": true,
+		"exactOptionalPropertyTypes": true,
+		"noUncheckedIndexedAccess": true
 	}
 }

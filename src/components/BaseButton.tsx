@@ -1,12 +1,12 @@
 import clsx from "clsx";
-import type React from "react";
+import type { ReactNode } from "react";
 
 interface BaseButtonProps {
 	href: string;
-	children: React.ReactNode;
+	children: ReactNode;
 	variant?: "primary" | "purple" | "pink" | "pink-light" | "slate" | "green";
 	rounded?: "full" | "l" | "r" | "none";
-	className?: string;
+	className?: string | undefined;
 }
 
 const colorVariants = {

@@ -1,4 +1,3 @@
-import type React from "react";
 import RelatedLinks from "./RelatedLinks";
 
 export default function ProfileSection() {
