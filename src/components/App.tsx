@@ -8,10 +8,10 @@ export default function App() {
 		<div className="min-h-screen">
 			<HeroSection />
 
-			<div id="content" className="container mx-auto px-4">
+			<main id="content" className="container mx-auto px-4">
 				<ProfileSection />
 				<FanArtGuidelines />
-			</div>
+			</main>
 		</div>
 	);
 }

@@ -5,6 +5,7 @@ import BaseButton from "./BaseButton";
 interface LinkGroupProps {
 	children: React.ReactNode;
 	className?: string;
+	"aria-label"?: string;
 }
 
 interface ItemProps {
@@ -49,9 +50,17 @@ function Item({
 	);
 }
 
-function LinkGroup({ children, className }: LinkGroupProps) {
+function LinkGroup({
+	children,
+	className,
+	"aria-label": ariaLabel,
+}: LinkGroupProps) {
 	return (
-		<div className={clsx("w-full md:w-auto flex flex-row", className)}>
+		<div
+			className={clsx("w-full md:w-auto flex flex-row", className)}
+			aria-label={ariaLabel}
+			role={ariaLabel ? "group" : undefined}
+		>
 			{children}
 		</div>
 	);

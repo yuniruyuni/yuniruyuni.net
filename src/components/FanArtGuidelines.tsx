@@ -6,8 +6,14 @@ import TextLink from "./TextLink";
 
 export default function FanArtGuidelines() {
 	return (
-		<div className="bg-white bg-opacity-90 rounded-xl shadow-2xl p-8 max-w-4xl mx-auto my-16">
-			<SectionHeader title="📚二次創作・ファンアートについて" />
+		<section
+			className="bg-white bg-opacity-90 rounded-xl shadow-2xl p-8 max-w-4xl mx-auto my-16"
+			aria-labelledby="guidelines-heading"
+		>
+			<SectionHeader
+				id="guidelines-heading"
+				title="📚二次創作・ファンアートについて"
+			/>
 			<GuidelineList>
 				<GuidelineItem>
 					私のアバターはHoneycrisp様の
@@ -51,6 +57,6 @@ export default function FanArtGuidelines() {
 					この件については、ご迷惑になるのでHoneycrisp様に問い合わせるのはやめてください。
 				</GuidelineItem>
 			</GuidelineList>
-		</div>
+		</section>
 	);
 }

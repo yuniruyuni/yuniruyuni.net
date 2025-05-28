@@ -2,9 +2,9 @@ import type React from "react";
 import LinkButton from "./LinkButton";
 import TwitterLinks from "./TwitterLinks";
 
-export default function SocialLinks() {
+export default function RelatedLinks() {
 	return (
-		<div className="space-y-4">
+		<nav className="space-y-4" aria-label="関連リンク">
 			<LinkButton href="https://twitch.tv/yuniruyuni" variant="purple">
 				Twitch Channel (Main streaming)
 			</LinkButton>
@@ -30,6 +30,6 @@ export default function SocialLinks() {
 			>
 				HARI(おたより/質問箱)
 			</LinkButton>
-		</div>
+		</nav>
 	);
 }

@@ -3,7 +3,7 @@ import LinkGroup from "./LinkGroup";
 
 export default function TwitterLinks() {
 	return (
-		<LinkGroup>
+		<LinkGroup aria-label="Twitter関連リンク">
 			<LinkGroup.Item
 				position="first"
 				href="https://twitter.com/yuniruyuni"

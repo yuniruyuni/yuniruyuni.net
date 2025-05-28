@@ -32,6 +32,8 @@ export default function BaseButton({
 	rounded = "full",
 	className,
 }: BaseButtonProps) {
+	const isExternal = href.startsWith("http");
+
 	return (
 		<a
 			href={href}
@@ -46,6 +48,10 @@ export default function BaseButton({
 				// Custom overrides
 				className,
 			)}
+			{...(isExternal && {
+				target: "_blank",
+				rel: "noopener noreferrer",
+			})}
 		>
 			{children}
 		</a>
