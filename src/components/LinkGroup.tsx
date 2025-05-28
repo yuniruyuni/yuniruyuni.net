@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import type React from "react";
+import BaseButton from "./BaseButton";
 
 interface LinkGroupProps {
 	children: React.ReactNode;
@@ -11,13 +12,20 @@ interface ItemProps {
 	text: string;
 	label?: string;
 	position: "first" | "middle" | "last";
+	variant?: "primary" | "purple" | "pink" | "pink-light" | "slate" | "green";
 	className?: string;
 }
 
 const positionStyles = {
-	first: "w-full rounded-l-full border-r border-dotted border-white",
+	first: "w-full border-r border-dotted border-white",
 	middle: "relative w-fill border-r border-dotted border-white",
-	last: "relative flex-1 rounded-r-full",
+	last: "relative flex-1",
+};
+
+const positionRounding = {
+	first: "l" as const,
+	middle: "none" as const,
+	last: "r" as const,
 };
 
 function Item({
@@ -25,13 +33,19 @@ function Item({
 	text,
 	label,
 	position,
-	className = "bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 transition duration-300 ease-in-out",
+	variant = "primary",
+	className,
 }: ItemProps) {
 	return (
-		<a href={href} className={clsx(className, positionStyles[position])}>
+		<BaseButton
+			href={href}
+			variant={variant}
+			rounded={positionRounding[position]}
+			className={clsx(positionStyles[position], className)}
+		>
 			{label && <span className="absolute top-0 left-1 text-xs">{label}</span>}
 			<span className={clsx(label && "text-sm")}>{text}</span>
-		</a>
+		</BaseButton>
 	);
 }
 

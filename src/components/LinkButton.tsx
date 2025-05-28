@@ -1,27 +1,22 @@
-import clsx from "clsx";
 import type React from "react";
+import BaseButton from "./BaseButton";
 
 interface LinkButtonProps {
 	href: string;
 	children: React.ReactNode;
+	variant?: "primary" | "purple" | "pink" | "pink-light" | "slate" | "green";
 	className?: string;
 }
 
 export default function LinkButton({
 	href,
 	children,
+	variant = "primary",
 	className,
 }: LinkButtonProps) {
 	return (
-		<a
-			href={href}
-			className={clsx(
-				"block w-full md:w-auto font-bold py-2 px-4 rounded-full transition duration-300 ease-in-out",
-				"bg-blue-400 hover:bg-blue-500 text-white",
-				className,
-			)}
-		>
+		<BaseButton href={href} variant={variant} className={className}>
 			{children}
-		</a>
+		</BaseButton>
 	);
 }
