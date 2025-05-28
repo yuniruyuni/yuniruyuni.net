@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import type React from "react";
 
 interface SectionHeaderProps {
@@ -7,11 +8,13 @@ interface SectionHeaderProps {
 
 export default function SectionHeader({
 	title,
-	className = "text-2xl font-bold text-gray-600 mb-2",
+	className,
 }: SectionHeaderProps) {
 	return (
 		<header className="text-center mb-8">
-			<h2 className={className}>{title}</h2>
+			<h2 className={clsx("text-2xl font-bold text-gray-600 mb-2", className)}>
+				{title}
+			</h2>
 		</header>
 	);
 }

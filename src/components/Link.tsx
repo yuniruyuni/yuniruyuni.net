@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import type React from "react";
 
 interface LinkProps {
@@ -6,13 +7,16 @@ interface LinkProps {
 	className?: string;
 }
 
-export default function Link({
-	href,
-	children,
-	className = "font-medium text-blue-600 underline dark:text-blue-500 hover:no-underline",
-}: LinkProps) {
+export default function Link({ href, children, className }: LinkProps) {
 	return (
-		<a href={href} className={className}>
+		<a
+			href={href}
+			className={clsx(
+				"font-medium text-blue-600 underline hover:no-underline",
+				"dark:text-blue-500",
+				className,
+			)}
+		>
 			{children}
 		</a>
 	);

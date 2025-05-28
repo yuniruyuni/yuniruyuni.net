@@ -1,3 +1,4 @@
+import clsx from "clsx";
 import type React from "react";
 
 interface LinkGroupProps {
@@ -27,18 +28,19 @@ function Item({
 	className = "bg-blue-400 hover:bg-blue-500 text-white font-bold py-2 px-4 transition duration-300 ease-in-out",
 }: ItemProps) {
 	return (
-		<a href={href} className={`${className} ${positionStyles[position]}`}>
+		<a href={href} className={clsx(className, positionStyles[position])}>
 			{label && <span className="absolute top-0 left-1 text-xs">{label}</span>}
-			<span className={label ? "text-sm" : ""}>{text}</span>
+			<span className={clsx(label && "text-sm")}>{text}</span>
 		</a>
 	);
 }
 
-function LinkGroup({
-	children,
-	className = "w-full md:w-auto flex flex-row",
-}: LinkGroupProps) {
-	return <div className={className}>{children}</div>;
+function LinkGroup({ children, className }: LinkGroupProps) {
+	return (
+		<div className={clsx("w-full md:w-auto flex flex-row", className)}>
+			{children}
+		</div>
+	);
 }
 
 LinkGroup.Item = Item;
