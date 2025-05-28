@@ -19,6 +19,7 @@ function generateHTML() {
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:site" content="@yuniruyuni" />
     <link rel="stylesheet" href="index.css" />
+    <link rel="preload" href="top.webp" as="image" type="image/webp" />
     <title>yuniruyuni.net</title>
     <script>
         const timer = setTimeout(() => {
