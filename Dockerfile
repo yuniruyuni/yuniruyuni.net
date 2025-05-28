@@ -3,10 +3,13 @@ FROM oven/bun:latest AS build
 WORKDIR /work
 
 ADD package.json /work
-RUN bun install
+ADD bun.lock /work
+RUN bun install --frozen-lockfile
 
 ADD . /work
 RUN bun run build
 
-FROM joseluisq/static-web-server:latest
-COPY --from=build /work/dist/* /public/
+FROM nginx:alpine-slim
+
+COPY conf.d/default.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /work/dist/ /usr/share/nginx/html/
