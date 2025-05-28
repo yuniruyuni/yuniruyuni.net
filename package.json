@@ -1,17 +1,18 @@
 {
   "name": "yuniruyuni.net",
   "peerDependencies": {
-    "typescript": "^5.5.3"
+    "typescript": "^5.8.3"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "npm-run-all2": "^6.2.6",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^4.1.7",
+    "@tailwindcss/cli": "^4.1.7"
   },
   "scripts": {
     "build": "run-p 'build:*'",
     "build:html": "mkdir -p dist && cp index.html dist/index.html",
-    "build:css": "NODE_ENV=production tailwindcss build -m index.css -o dist/index.css",
+    "build:css": "NODE_ENV=production tailwindcss -m -i index.css -o dist/index.css",
     "build:images": "mkdir -p dist && cp *.webp dist/ && cp favicon.ico dist/"
   }
 }
