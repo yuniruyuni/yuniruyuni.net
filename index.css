@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@source "./src/**/*.tsx";
 
 /*
   The default border color has changed to `currentcolor` in Tailwind CSS v4,
