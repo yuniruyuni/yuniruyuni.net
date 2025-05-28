@@ -22,6 +22,7 @@
 		"build:images": "mkdir -p dist && cp *.webp dist/ && cp favicon.ico dist/",
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
-		"format": "biome format --write"
+		"format": "biome format --write",
+		"type": "tsc --noEmit"
 	}
 }
