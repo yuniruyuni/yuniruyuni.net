@@ -1,7 +1,7 @@
 import type React from "react";
 import LinkGroup from "./LinkGroup";
 
-export default function TwitterLinkGroup() {
+export default function TwitterLinks() {
 	return (
 		<LinkGroup>
 			<LinkGroup.Item

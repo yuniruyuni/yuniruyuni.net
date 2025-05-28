@@ -1,6 +1,6 @@
 import type React from "react";
 import LinkButton from "./LinkButton";
-import TwitterLinkGroup from "./TwitterLinkGroup";
+import TwitterLinks from "./TwitterLinks";
 
 export default function SocialLinks() {
 	return (
@@ -19,7 +19,7 @@ export default function SocialLinks() {
 				Youtube Channel
 			</LinkButton>
 
-			<TwitterLinkGroup />
+			<TwitterLinks />
 
 			<LinkButton
 				href="https://github.com/yuniruyuni"

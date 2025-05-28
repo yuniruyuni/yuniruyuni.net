@@ -1,13 +1,13 @@
 import clsx from "clsx";
 import type React from "react";
 
-interface LinkProps {
+interface TextLinkProps {
 	href: string;
 	children: React.ReactNode;
 	className?: string;
 }
 
-export default function Link({ href, children, className }: LinkProps) {
+export default function TextLink({ href, children, className }: TextLinkProps) {
 	return (
 		<a
 			href={href}

@@ -1,8 +1,8 @@
 import type React from "react";
 import GuidelineItem from "./GuidelineItem";
 import GuidelineList from "./GuidelineList";
-import Link from "./Link";
 import SectionHeader from "./SectionHeader";
+import TextLink from "./TextLink";
 
 export default function FanArtGuidelines() {
 	return (
@@ -11,7 +11,10 @@ export default function FanArtGuidelines() {
 			<GuidelineList>
 				<GuidelineItem>
 					私のアバターはHoneycrisp様の
-					<Link href="https://booth.pm/ja/items/2198694">ユキちゃん</Link>です。
+					<TextLink href="https://booth.pm/ja/items/2198694">
+						ユキちゃん
+					</TextLink>
+					です。
 				</GuidelineItem>
 
 				<GuidelineItem>
@@ -38,7 +41,9 @@ export default function FanArtGuidelines() {
 				<GuidelineItem>
 					宜しければ配信のサムネイルや
 					SNS投稿に使用する可能性があることを了承の上{" "}
-					<Link href="https://x.com/hashtag/yunigraphics">#yunigraphics</Link>{" "}
+					<TextLink href="https://x.com/hashtag/yunigraphics">
+						#yunigraphics
+					</TextLink>{" "}
 					のタグ付きで投稿していただけると嬉しいです。
 				</GuidelineItem>
 
