@@ -21,6 +21,24 @@ function generateHTML() {
     <link rel="stylesheet" href="index.css" />
     <link rel="preload" href="top.webp" as="image" type="image/webp" />
     <title>yuniruyuni.net</title>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Person",
+      "name": "ゆにるユニ",
+      "description": "2222年からやってきた未来のVirtual TechLead。IT技術のお話やプログラミングの配信を中心に、ゲーム遊んだり歌やピアノなどのやったことのない新しいスキルを身に着ける挑戦をしてみたり、色々と活動しています✨",
+      "url": "https://yuniruyuni.net/",
+      "image": "https://yuniruyuni.net/ogp.webp",
+      "sameAs": [
+        "https://twitch.tv/yuniruyuni",
+        "https://youtube.com/@yuniruyuni",
+        "https://twitter.com/yuniruyuni",
+        "https://github.com/yuniruyuni"
+      ],
+      "jobTitle": "Virtual TechLead",
+      "knowsAbout": ["Programming", "Technology", "Live Streaming", "Gaming"]
+    }
+    </script>
     <script>
         const timer = setTimeout(() => {
             const target = document.querySelector("#content");
