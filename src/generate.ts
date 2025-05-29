@@ -18,6 +18,10 @@ function generateHTML() {
     <meta property="og:image" content="https://yuniruyuni.net/ogp.webp" />
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:site" content="@yuniruyuni" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#9333ea" />
     <link rel="stylesheet" href="index.css" />
     <link rel="preload" href="top.webp" as="image" type="image/webp" />
     <title>yuniruyuni.net</title>
