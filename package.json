@@ -20,7 +20,7 @@
 		"build": "run-p 'build:*'",
 		"build:html": "bun run src/generate.ts",
 		"build:css": "NODE_ENV=production tailwindcss -m -i index.css -o dist/index.css",
-		"build:images": "mkdir -p dist && cp *.webp dist/ && cp favicon.ico dist/",
+		"build:images": "mkdir -p dist && cp *.webp dist/ && cp favicon.ico dist/ && cp *.png dist/ && cp site.webmanifest dist/",
 		"lint": "biome check",
 		"lint:fix": "biome check --write",
 		"format": "biome format --write",
