@@ -1,6 +1,7 @@
 import FanArtGuidelines from "./FanArtGuidelines";
 import HeroSection from "./HeroSection";
 import ProfileSection from "./ProfileSection";
+import StreamingProducts from "./StreamingProducts";
 
 export default function App() {
 	return (
@@ -9,6 +10,7 @@ export default function App() {
 
 			<main id="content" className="container mx-auto px-4">
 				<ProfileSection />
+				<StreamingProducts />
 				<FanArtGuidelines />
 			</main>
 		</div>
