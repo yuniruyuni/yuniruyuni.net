@@ -1,0 +1,108 @@
+name: Terraform Plan
+
+on:
+  pull_request:
+    paths:
+      - '*.tf'
+      - '.github/workflows/terraform-*.yml'
+
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    environment: terraform-plan
+
+    steps:
+      - name: Check if fork PR
+        id: fork-check
+        env:
+          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
+        run: |
+          if [ "$PR_REPO" != "$BASE_REPO" ]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment skip message for fork PRs
+        if: steps.fork-check.outputs.is_fork == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'This PR is from a fork. Terraform plan is skipped for security.\nUse `/plan` comment to trigger plan after code review.'
+            })
+
+      - name: Checkout
+        if: steps.fork-check.outputs.is_fork == 'false'
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Authenticate to Google Cloud
+        if: steps.fork-check.outputs.is_fork == 'false'
+        id: auth
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Setup Terraform
+        if: steps.fork-check.outputs.is_fork == 'false'
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: "1.9"
+
+      - name: Terraform Init
+        if: steps.fork-check.outputs.is_fork == 'false'
+        run: terraform init
+
+      - name: Terraform Plan
+        if: steps.fork-check.outputs.is_fork == 'false'
+        id: plan
+        run: terraform plan -no-color -out=tfplan
+        env:
+          TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          TF_VAR_vps_ip_address: ${{ secrets.VPS_IP_ADDRESS }}
+          TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
+        continue-on-error: true
+
+      - name: Comment PR with Plan
+        if: steps.fork-check.outputs.is_fork == 'false'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
+          ACTOR: ${{ github.actor }}
+        with:
+          script: |
+            const body = `#### Terraform Plan \`${process.env.PLAN_OUTCOME}\`
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`
+            ${process.env.PLAN_OUTPUT}
+            \`\`\`
+
+            </details>
+
+            *Pushed by: @${process.env.ACTOR}*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            })
+
+      - name: Plan Status
+        if: steps.fork-check.outputs.is_fork == 'false' && steps.plan.outcome == 'failure'
+        run: exit 1
