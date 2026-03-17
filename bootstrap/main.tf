@@ -69,11 +69,53 @@ resource "google_service_account" "terraform_github" {
   depends_on = [google_project_service.required]
 }
 
+# Project-level roles (IaC管理)
+resource "google_project_iam_member" "terraform_github" {
+  for_each = toset([
+    "roles/editor",
+    "roles/iam.securityAdmin",
+    "roles/iam.workloadIdentityPoolAdmin",
+  ])
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.terraform_github.email}"
+}
+
 # GCS権限
 resource "google_storage_bucket_iam_member" "terraform_state_admin" {
   bucket = google_storage_bucket.terraform_state.name
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.terraform_github.email}"
+}
+
+# =============================================================================
+# Plan-only Service Account (read-only)
+# =============================================================================
+
+resource "google_service_account" "terraform_github_plan" {
+  account_id   = "terraform-github-plan"
+  display_name = "Terraform GitHub Actions (Plan)"
+  description  = "Read-only service account for terraform plan from GitHub Actions"
+
+  depends_on = [google_project_service.required]
+}
+
+# Project-level read-only roles
+resource "google_project_iam_member" "terraform_github_plan" {
+  for_each = toset([
+    "roles/viewer",
+    "roles/iam.securityReviewer",
+  ])
+  project = var.project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.terraform_github_plan.email}"
+}
+
+# State bucket access (locking requires read-write)
+resource "google_storage_bucket_iam_member" "terraform_state_plan" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.terraform_github_plan.email}"
 }
 
 # =============================================================================
@@ -112,6 +154,13 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 # Service AccountへのWorkload Identityバインド
 resource "google_service_account_iam_member" "workload_identity_user" {
   service_account_id = google_service_account.terraform_github.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions.name}/attribute.repository/${var.github_org}/${var.github_repo}"
+}
+
+# Plan SA へのWorkload Identityバインド
+resource "google_service_account_iam_member" "workload_identity_user_plan" {
+  service_account_id = google_service_account.terraform_github_plan.name
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions.name}/attribute.repository/${var.github_org}/${var.github_repo}"
 }
