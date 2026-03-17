@@ -13,11 +13,24 @@ output "service_account_email" {
   value       = google_service_account.terraform_github.email
 }
 
+output "plan_service_account_email" {
+  description = "Terraform GitHub Actions plan service account email"
+  value       = google_service_account.terraform_github_plan.email
+}
+
 output "github_secrets" {
-  description = "Values to set as GitHub repository secrets"
+  description = "Values to set as GitHub apply environment secrets"
   value = {
     GCP_WORKLOAD_IDENTITY_PROVIDER = google_iam_workload_identity_pool_provider.github.name
     GCP_SERVICE_ACCOUNT            = google_service_account.terraform_github.email
+  }
+}
+
+output "github_secrets_plan" {
+  description = "Values to set as GitHub plan environment secrets"
+  value = {
+    GCP_WORKLOAD_IDENTITY_PROVIDER = google_iam_workload_identity_pool_provider.github.name
+    GCP_SERVICE_ACCOUNT            = google_service_account.terraform_github_plan.email
   }
 }
 

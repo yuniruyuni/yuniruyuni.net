@@ -22,10 +22,10 @@ locals {
     wildcard = { name = "*", type = "A", target = "vps", proxied = true }
 
     # VPS Tunnel (CNAME to main tunnel)
-    n8n     = { name = "n8n", type = "CNAME", target = "tunnel_main", proxied = true }
+    n8n = { name = "n8n", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # SSH via VPS Tunnel (proxied through Cloudflare for Zero Trust access)
-    ssh     = { name = "ssh", type = "CNAME", target = "tunnel_main", proxied = true }
+    ssh = { name = "ssh", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # GCE Tunnel (CNAME to gce tunnel)
     # Root domain uses CNAME flattening (Cloudflare feature)
@@ -48,7 +48,7 @@ resource "cloudflare_dns_record" "records" {
     "${cloudflare_zero_trust_tunnel_cloudflared.gce.id}.cfargotunnel.com"
   )
   proxied = each.value.proxied
-  ttl     = each.value.proxied ? 1 : 300  # Auto for proxied, 5min for direct
+  ttl     = each.value.proxied ? 1 : 300 # Auto for proxied, 5min for direct
 }
 
 # State migration: move old individual resources to new for_each resources
