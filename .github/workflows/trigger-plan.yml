@@ -81,7 +81,9 @@ jobs:
           COMMENTER: ${{ github.event.comment.user.login }}
         with:
           script: |
-            const body = `#### Terraform Plan \`${process.env.PLAN_OUTCOME}\` (triggered by /plan)
+            const marker = '<!-- terraform-plan-comment -->';
+            const body = `${marker}
+            #### Terraform Plan \`${process.env.PLAN_OUTCOME}\` (triggered by /plan)
 
             <details><summary>Show Plan</summary>
 
@@ -93,12 +95,28 @@ jobs:
 
             *Triggered by: @${process.env.COMMENTER}*`;
 
-            github.rest.issues.createComment({
+            const { data: comments } = await github.rest.issues.listComments({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: body
-            })
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: body,
+              });
+            }
 
       - name: Plan Status
         if: steps.plan.outcome == 'failure'
