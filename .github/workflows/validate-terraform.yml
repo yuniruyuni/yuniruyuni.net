@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '*.tf'
-      - '.github/workflows/terraform-*.yml'
+      - '.github/workflows/*-terraform*.yml'
 
 jobs:
   validate:

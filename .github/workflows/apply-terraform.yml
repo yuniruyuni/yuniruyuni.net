@@ -16,7 +16,7 @@ jobs:
   apply:
     name: Apply
     runs-on: ubuntu-latest
-    environment: production
+    environment: apply
 
     steps:
       - name: Checkout

@@ -15,7 +15,7 @@ jobs:
   deploy:
     name: Deploy NixOS Configuration
     runs-on: ubuntu-latest
-    environment: production
+    environment: apply
 
     steps:
       - name: Checkout
