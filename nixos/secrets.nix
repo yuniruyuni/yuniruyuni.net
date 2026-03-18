@@ -33,5 +33,12 @@
       group = "root";
       mode = "0400";
     };
+
+    ironclaw-db-password = {
+      file = ./secrets/ironclaw-db-password.age;
+      owner = "postgres";
+      group = "postgres";
+      mode = "0400";
+    };
   };
 }
