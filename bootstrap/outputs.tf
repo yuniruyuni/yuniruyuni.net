@@ -6,6 +6,7 @@ output "terraform_state_bucket" {
 output "workload_identity_provider" {
   description = "Full Workload Identity Provider resource name"
   value       = google_iam_workload_identity_pool_provider.github.name
+  sensitive   = true
 }
 
 output "service_account_email" {
@@ -24,6 +25,7 @@ output "github_secrets" {
     GCP_WORKLOAD_IDENTITY_PROVIDER = google_iam_workload_identity_pool_provider.github.name
     GCP_SERVICE_ACCOUNT            = google_service_account.terraform_github.email
   }
+  sensitive = true
 }
 
 output "github_secrets_plan" {
@@ -32,6 +34,7 @@ output "github_secrets_plan" {
     GCP_WORKLOAD_IDENTITY_PROVIDER = google_iam_workload_identity_pool_provider.github.name
     GCP_SERVICE_ACCOUNT            = google_service_account.terraform_github_plan.email
   }
+  sensitive = true
 }
 
 output "backend_config" {
