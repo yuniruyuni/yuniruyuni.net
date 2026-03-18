@@ -51,7 +51,7 @@ in
       User = "postgres";
       ExecStart = pkgs.writeShellScript "setup-ironclaw-db" ''
         POSTGRES_PASSWORD=$(cat ${config.age.secrets.ironclaw-db-password.path})
-        ${pkgs.postgresql_16}/bin/psql -c "ALTER USER ironclaw WITH PASSWORD '$POSTGRES_PASSWORD';"
+        ${config.services.postgresql.package}/bin/psql -c "ALTER USER ironclaw WITH PASSWORD '$POSTGRES_PASSWORD';"
       '';
     };
   };
