@@ -2,21 +2,6 @@
 # Cloudflare Access - Zero Trust Protection
 # =============================================================================
 
-# Reusable Access Policy for IronClaw
-resource "cloudflare_zero_trust_access_policy" "ironclaw_allow_owner" {
-  account_id = var.cloudflare_account_id
-  name       = "Allow Owner for IronClaw"
-  decision   = "allow"
-
-  include = [
-    {
-      email = {
-        email = var.owner_email
-      }
-    }
-  ]
-}
-
 # IronClaw AI Agent - Protected by email authentication
 resource "cloudflare_zero_trust_access_application" "ironclaw" {
   zone_id          = data.cloudflare_zone.main.zone_id
@@ -25,6 +10,18 @@ resource "cloudflare_zero_trust_access_application" "ironclaw" {
   type             = "self_hosted"
   session_duration = "24h"
 
-  # Link the access policy to this application
-  policies = [cloudflare_zero_trust_access_policy.ironclaw_allow_owner.id]
+  # Inline access policy
+  policies = [
+    {
+      name     = "Allow Owner"
+      decision = "allow"
+      include = [
+        {
+          email = {
+            email = var.owner_email
+          }
+        }
+      ]
+    }
+  ]
 }
