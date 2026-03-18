@@ -1,0 +1,39 @@
+name: NixOS Validate
+
+on:
+  pull_request:
+    paths:
+      - 'nixos/**'
+      - '.github/workflows/*-nixos*.yml'
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+        with:
+          nix_path: nixpkgs=channel:nixos-24.11
+
+      - name: Check Flake
+        working-directory: nixos
+        run: nix flake check --no-build
+
+      - name: Build Configuration (dry-run)
+        working-directory: nixos
+        run: |
+          echo "Building NixOS configuration..."
+          nix build .#nixosConfigurations.vps.config.system.build.toplevel --dry-run
+          echo "Configuration is valid!"
+
+      - name: Build Configuration (full build)
+        working-directory: nixos
+        run: |
+          echo "Building NixOS system..."
+          nix build .#nixosConfigurations.vps.config.system.build.toplevel
+          echo "Build successful!"

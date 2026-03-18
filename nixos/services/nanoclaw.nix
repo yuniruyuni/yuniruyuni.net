@@ -10,7 +10,7 @@ let
     owner = "qwibitai";
     repo = "nanoclaw";
     rev = "main";
-    sha256 = "sha256-jOukDBo8CHlZOBwjvKZIa0kmrTaiEcz22vIu6RSaXBU=";
+    sha256 = "sha256-g5BeuSxjMDXbkV6Kaks9TwC/xoqGIKWgCgs1VSvSbH0=";
   };
 
   # Environment file generation script
