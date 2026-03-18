@@ -9,6 +9,9 @@
     package = pkgs.postgresql_16;
     enableTCPIP = true;
 
+    # Install pgvector extension
+    extraPlugins = ps: [ ps.pgvector ];
+
     authentication = lib.mkOverride 10 ''
       local   all             all                                     peer
       host    all             all             127.0.0.1/32            scram-sha-256
@@ -21,13 +24,10 @@
     ];
 
     settings = {
-      shared_preload_libraries = "vector";
       max_connections = 100;
       shared_buffers = "256MB";
     };
   };
-
-  environment.systemPackages = [ pkgs.postgresql16Packages.pgvector ];
 
   # Initialize pgvector extension after database creation
   systemd.services.postgresql-pgvector-init = {
@@ -40,7 +40,7 @@
       RemainAfterExit = true;
       User = "postgres";
       ExecStart = pkgs.writeShellScript "init-pgvector" ''
-        ${pkgs.postgresql_16}/bin/psql -d ironclaw -c "CREATE EXTENSION IF NOT EXISTS vector;"
+        ${config.services.postgresql.package}/bin/psql -d ironclaw -c "CREATE EXTENSION IF NOT EXISTS vector;"
       '';
     };
   };

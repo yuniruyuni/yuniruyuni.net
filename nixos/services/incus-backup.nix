@@ -15,6 +15,9 @@
 { config, pkgs, lib, ... }:
 
 let
+  # PostgreSQL package (from services.postgresql)
+  postgresql = config.services.postgresql.package;
+
   # Backup destination on Google Drive
   gdrive_remote = "gdrive";
   gdrive_path_incus = "incus";
@@ -350,14 +353,14 @@ EOF'
     echo "Starting backup of IronClaw PostgreSQL database..."
 
     # Check if database exists
-    if ! sudo -u postgres ${pkgs.postgresql_16}/bin/psql -lqt | cut -d \| -f 1 | grep -qw ironclaw; then
+    if ! sudo -u postgres ${postgresql}/bin/psql -lqt | cut -d \| -f 1 | grep -qw ironclaw; then
       echo "Error: Database 'ironclaw' does not exist."
       exit 1
     fi
 
     # Create database dump
     echo "Creating database dump..."
-    sudo -u postgres ${pkgs.postgresql_16}/bin/pg_dump ironclaw | ${pkgs.gzip}/bin/gzip > "$BACKUP_FILE"
+    sudo -u postgres ${postgresql}/bin/pg_dump ironclaw | ${pkgs.gzip}/bin/gzip > "$BACKUP_FILE"
     chmod 600 "$BACKUP_FILE"
 
     # Encrypt backup before upload
@@ -437,12 +440,12 @@ EOF'
 
     # Drop and recreate database
     echo "Recreating database..."
-    sudo -u postgres ${pkgs.postgresql_16}/bin/dropdb --if-exists ironclaw
-    sudo -u postgres ${pkgs.postgresql_16}/bin/createdb ironclaw
+    sudo -u postgres ${postgresql}/bin/dropdb --if-exists ironclaw
+    sudo -u postgres ${postgresql}/bin/createdb ironclaw
 
     # Restore database
     echo "Restoring database..."
-    ${pkgs.gzip}/bin/gunzip -c "$DECRYPTED_FILE" | sudo -u postgres ${pkgs.postgresql_16}/bin/psql ironclaw
+    ${pkgs.gzip}/bin/gunzip -c "$DECRYPTED_FILE" | sudo -u postgres ${postgresql}/bin/psql ironclaw
 
     # Restart IronClaw
     echo "Restarting IronClaw..."
@@ -553,7 +556,7 @@ in
     after = [ "network-online.target" "rclone-config-setup.service" "postgresql.service" ];
     wants = [ "network-online.target" ];
     requires = [ "rclone-config-setup.service" ];
-    path = [ pkgs.postgresql_16 pkgs.rclone pkgs.age pkgs.gzip pkgs.coreutils pkgs.gnugrep ];
+    path = [ postgresql pkgs.rclone pkgs.age pkgs.gzip pkgs.coreutils pkgs.gnugrep ];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${postgresBackup}/bin/postgres-backup";
