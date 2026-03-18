@@ -15,7 +15,13 @@
   };
 
   # Allow Podman containers to access Ollama
-  networking.firewall.interfaces."podman+".allowedTCPPorts = [ 11434 ];
+  # Using extraInputRules for nftables compatibility (podman+ wildcard doesn't work)
+  networking.firewall.extraInputRules = ''
+    # Allow Ollama access from Podman default network (10.88.0.0/16)
+    ip saddr 10.88.0.0/16 tcp dport 11434 accept
+    # Allow Ollama access from rootless Podman slirp4netns (10.0.2.0/24)
+    ip saddr 10.0.2.0/24 tcp dport 11434 accept
+  '';
 
   # Resource constraints for CPU-only VPS
   systemd.services.ollama = {
