@@ -22,4 +22,23 @@
       ];
     };
   };
+
+  # Wait for ollama API to be ready before loading models
+  systemd.services.ollama-model-loader = {
+    serviceConfig = {
+      ExecStartPre = pkgs.writeShellScript "wait-for-ollama" ''
+        echo "Waiting for Ollama API to be ready..."
+        for i in $(seq 1 30); do
+          if ${pkgs.curl}/bin/curl -s http://127.0.0.1:11434/api/tags > /dev/null 2>&1; then
+            echo "Ollama API is ready"
+            exit 0
+          fi
+          echo "Attempt $i/30: Ollama not ready, waiting..."
+          sleep 2
+        done
+        echo "Ollama API did not become ready in time"
+        exit 1
+      '';
+    };
+  };
 }
