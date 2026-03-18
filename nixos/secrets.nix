@@ -34,10 +34,10 @@
       mode = "0400";
     };
 
-    ironclaw-db-password = {
-      file = ./secrets/ironclaw-db-password.age;
-      owner = "postgres";
-      group = "postgres";
+    discord-bot-token = {
+      file = ./secrets/discord-bot-token.age;
+      owner = "nanoclaw";
+      group = "nanoclaw";
       mode = "0400";
     };
   };

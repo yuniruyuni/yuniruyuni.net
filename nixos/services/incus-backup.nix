@@ -7,22 +7,16 @@
 # - incus-personal-restore: Restore personal container from Google Drive
 # - n8n-backup: Backup n8n data to Google Drive
 # - n8n-restore: Restore n8n data from Google Drive
-# - postgres-backup: Backup IronClaw PostgreSQL database to Google Drive
-# - postgres-restore: Restore IronClaw PostgreSQL database from Google Drive
 #
 # Automated daily backup via systemd timer
 
 { config, pkgs, lib, ... }:
 
 let
-  # PostgreSQL package (from services.postgresql)
-  postgresql = config.services.postgresql.package;
-
   # Backup destination on Google Drive
   gdrive_remote = "gdrive";
   gdrive_path_incus = "incus";
   gdrive_path_n8n = "n8n";
-  gdrive_path_postgres = "postgresql";
 
   # Backup staging directory (restricted permissions, avoids world-readable /tmp)
   staging_dir = "/var/lib/backups/staging";
@@ -342,121 +336,6 @@ EOF'
     echo "Restore completed successfully!"
   '';
 
-  # Backup IronClaw PostgreSQL database to Google Drive
-  postgresBackup = pkgs.writeShellScriptBin "postgres-backup" ''
-    set -euo pipefail
-
-    TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-    BACKUP_FILE="${staging_dir}/ironclaw-db-$TIMESTAMP.sql.gz"
-    RCLONE_CONFIG="${rclone_config_path}"
-
-    echo "Starting backup of IronClaw PostgreSQL database..."
-
-    # Check if database exists
-    if ! sudo -u postgres ${postgresql}/bin/psql -lqt | cut -d \| -f 1 | grep -qw ironclaw; then
-      echo "Error: Database 'ironclaw' does not exist."
-      exit 1
-    fi
-
-    # Create database dump
-    echo "Creating database dump..."
-    sudo -u postgres ${postgresql}/bin/pg_dump ironclaw | ${pkgs.gzip}/bin/gzip > "$BACKUP_FILE"
-    chmod 600 "$BACKUP_FILE"
-
-    # Encrypt backup before upload
-    echo "Encrypting backup..."
-    ENCRYPTED_FILE="$BACKUP_FILE.age"
-    ${pkgs.age}/bin/age -r "${age_recipient}" -o "$ENCRYPTED_FILE" "$BACKUP_FILE"
-    rm -f "$BACKUP_FILE"
-
-    echo "Uploading to Google Drive..."
-    ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
-      copy "$ENCRYPTED_FILE" ${gdrive_remote}:${gdrive_path_postgres}/ \
-      --progress
-
-    # Keep only last 7 backups on Google Drive
-    echo "Cleaning up old backups..."
-    ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
-      delete ${gdrive_remote}:${gdrive_path_postgres}/ \
-      --min-age 7d
-
-    # Cleanup local temp file
-    rm -f "$ENCRYPTED_FILE"
-
-    echo "Backup completed successfully!"
-    echo "Uploaded: ${gdrive_remote}:${gdrive_path_postgres}/$(basename $ENCRYPTED_FILE)"
-  '';
-
-  # Restore IronClaw PostgreSQL database from Google Drive
-  postgresRestore = pkgs.writeShellScriptBin "postgres-restore" ''
-    set -euo pipefail
-
-    RCLONE_CONFIG="${rclone_config_path}"
-    RESTORE_DIR="${staging_dir}/postgres-restore"
-
-    echo "Listing available backups..."
-    ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
-      ls ${gdrive_remote}:${gdrive_path_postgres}/ | grep "ironclaw-db" | sort -r | head -10
-
-    echo ""
-    read -p "Enter backup filename to restore (or 'latest' for most recent): " BACKUP_NAME
-
-    if [ "$BACKUP_NAME" = "latest" ]; then
-      BACKUP_NAME=$(${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
-        ls ${gdrive_remote}:${gdrive_path_postgres}/ | grep "ironclaw-db" | sort -r | head -1 | awk '{print $2}')
-      echo "Using latest backup: $BACKUP_NAME"
-    fi
-
-    if [ -z "$BACKUP_NAME" ]; then
-      echo "Error: No backup specified"
-      exit 1
-    fi
-
-    echo ""
-    read -p "Enter path to age identity file for decryption: " AGE_KEY
-
-    if [ ! -f "$AGE_KEY" ]; then
-      echo "Error: Identity file not found: $AGE_KEY"
-      exit 1
-    fi
-
-    # Download backup
-    mkdir -p "$RESTORE_DIR"
-    echo "Downloading backup from Google Drive..."
-    ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
-      copy ${gdrive_remote}:${gdrive_path_postgres}/"$BACKUP_NAME" "$RESTORE_DIR/" \
-      --progress
-
-    # Decrypt backup
-    echo "Decrypting backup..."
-    DECRYPTED_FILE="$RESTORE_DIR/$(basename "$BACKUP_NAME" .age)"
-    ${pkgs.age}/bin/age -d -i "$AGE_KEY" -o "$DECRYPTED_FILE" "$RESTORE_DIR/$BACKUP_NAME"
-    rm -f "$RESTORE_DIR/$BACKUP_NAME"
-
-    # Stop IronClaw
-    echo "Stopping IronClaw..."
-    sudo systemctl stop podman-ironclaw || true
-    sleep 2
-
-    # Drop and recreate database
-    echo "Recreating database..."
-    sudo -u postgres ${postgresql}/bin/dropdb --if-exists ironclaw
-    sudo -u postgres ${postgresql}/bin/createdb ironclaw
-
-    # Restore database
-    echo "Restoring database..."
-    ${pkgs.gzip}/bin/gunzip -c "$DECRYPTED_FILE" | sudo -u postgres ${postgresql}/bin/psql ironclaw
-
-    # Restart IronClaw
-    echo "Restarting IronClaw..."
-    sudo systemctl start podman-ironclaw
-
-    # Cleanup
-    rm -rf "$RESTORE_DIR"
-
-    echo "Restore completed successfully!"
-  '';
-
 in
 {
   # Backup staging directory with restricted permissions
@@ -473,8 +352,6 @@ in
     incusPersonalRestore
     n8nBackup
     n8nRestore
-    postgresBackup
-    postgresRestore
   ];
 
   # rclone config setup service (runs before backup)
@@ -535,31 +412,6 @@ in
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${n8nBackup}/bin/n8n-backup";
-      TimeoutStartSec = "30min";
-    };
-  };
-
-  # Daily PostgreSQL backup timer
-  systemd.timers.postgres-backup = {
-    description = "Daily backup of IronClaw PostgreSQL database";
-    wantedBy = [ "timers.target" ];
-    timerConfig = {
-      OnCalendar = "daily";
-      Persistent = true;
-      RandomizedDelaySec = "1h";
-    };
-  };
-
-  # PostgreSQL backup service
-  systemd.services.postgres-backup = {
-    description = "Backup IronClaw PostgreSQL database to Google Drive";
-    after = [ "network-online.target" "rclone-config-setup.service" "postgresql.service" ];
-    wants = [ "network-online.target" ];
-    requires = [ "rclone-config-setup.service" ];
-    path = [ postgresql pkgs.rclone pkgs.age pkgs.gzip pkgs.coreutils pkgs.gnugrep ];
-    serviceConfig = {
-      Type = "oneshot";
-      ExecStart = "${postgresBackup}/bin/postgres-backup";
       TimeoutStartSec = "30min";
     };
   };
