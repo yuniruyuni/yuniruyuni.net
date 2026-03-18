@@ -20,6 +20,12 @@ variable "zone_name" {
   default     = "yuniruyuni.net"
 }
 
+variable "owner_email" {
+  description = "Owner email address for Zero Trust Access policies"
+  type        = string
+  sensitive   = true
+}
+
 variable "vps_ip_address" {
   description = "VPS server IP address"
   type        = string

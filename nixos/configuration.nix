@@ -14,6 +14,9 @@
     ./services/incus.nix
     ./services/incus-backup.nix
     ./services/monitoring.nix
+    ./services/postgresql.nix
+    ./services/ollama.nix
+    ./services/ironclaw.nix
   ];
 
   # Boot configuration
