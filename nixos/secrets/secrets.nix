@@ -37,6 +37,6 @@ in
   # rclone config for Google Drive backup
   "rclone-config.age".publicKeys = systems ++ admins;
 
-  # IronClaw PostgreSQL database password
-  "ironclaw-db-password.age".publicKeys = systems ++ admins;
+  # Discord Bot token for NanoClaw
+  "discord-bot-token.age".publicKeys = systems ++ admins;
 }

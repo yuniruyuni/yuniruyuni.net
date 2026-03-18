@@ -1,17 +1,21 @@
 # Ollama service configuration
-# Local LLM runtime for IronClaw
+# Local LLM runtime for NanoClaw with Anthropic API compatibility
 
 { config, pkgs, lib, ... }:
 
 {
   services.ollama = {
     enable = true;
-    host = "127.0.0.1";
+    # Bind to all interfaces for container access
+    host = "0.0.0.0";
     port = 11434;
 
     # Qwen 3.5 4B - multimodal model with tool calling support
     loadModels = [ "qwen3.5:4b" ];
   };
+
+  # Allow Podman containers to access Ollama
+  networking.firewall.interfaces."podman+".allowedTCPPorts = [ 11434 ];
 
   # Resource constraints for CPU-only VPS
   systemd.services.ollama = {

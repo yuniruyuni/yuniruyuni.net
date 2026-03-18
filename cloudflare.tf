@@ -22,8 +22,7 @@ locals {
     wildcard = { name = "*", type = "A", target = "vps", proxied = true }
 
     # VPS Tunnel (CNAME to main tunnel)
-    n8n   = { name = "n8n", type = "CNAME", target = "tunnel_main", proxied = true }
-    agent = { name = "agent", type = "CNAME", target = "tunnel_main", proxied = true }
+    n8n = { name = "n8n", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # SSH via VPS Tunnel (proxied through Cloudflare for Zero Trust access)
     ssh = { name = "ssh", type = "CNAME", target = "tunnel_main", proxied = true }
@@ -110,11 +109,6 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "n8n.${var.zone_name}"
         service  = "http://localhost:5678"
-      },
-      # IronClaw AI agent
-      {
-        hostname = "agent.${var.zone_name}"
-        service  = "http://localhost:3000"
       },
       # SSH access
       {
