@@ -5,6 +5,7 @@
 output "cloudflare_zone_id" {
   description = "Cloudflare Zone ID"
   value       = data.cloudflare_zone.main.zone_id
+  sensitive   = true
 }
 
 output "cloudflare_zone_name" {
@@ -15,6 +16,7 @@ output "cloudflare_zone_name" {
 output "gce_tunnel_id" {
   description = "GCE Tunnel ID"
   value       = cloudflare_zero_trust_tunnel_cloudflared.gce.id
+  sensitive   = true
 }
 
 # =============================================================================
@@ -24,6 +26,7 @@ output "gce_tunnel_id" {
 output "workload_identity_provider" {
   description = "Workload Identity Provider for GitHub Actions"
   value       = google_iam_workload_identity_pool_provider.github_actions.name
+  sensitive   = true
 }
 
 output "deployer_service_account" {
