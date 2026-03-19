@@ -54,6 +54,11 @@ let
               npm run build
             fi
 
+            # Fix permissions for agent containers (run as node user, UID 1000)
+            # Main container runs as root, agent containers run as node (UID 1000)
+            # Make groups directory writable by all so agent containers can create/delete IPC files
+            chmod -R 1777 ${nanoclawDir}/groups 2>/dev/null || true
+
             echo "Starting NanoClaw..."
             exec node dist/index.js
         restart: unless-stopped
