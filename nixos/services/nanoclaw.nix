@@ -171,8 +171,9 @@ in
       RestartSec = "10s";
 
       # Use root podman via socket (container images are built as root)
+      # CONTAINER_HOST is the correct env var for podman (not DOCKER_HOST)
       Environment = [
-        "DOCKER_HOST=unix:///run/podman/podman.sock"
+        "CONTAINER_HOST=unix:///run/podman/podman.sock"
       ];
 
       # Security hardening
