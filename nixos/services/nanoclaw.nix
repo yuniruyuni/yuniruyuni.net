@@ -17,12 +17,18 @@ let
   # Single container handles setup (npm ci, build) and runs the app
   # This avoids podman-compose depends_on race conditions
   # Using node:24 LTS (not slim) for native module compilation (better-sqlite3)
+  #
+  # IMPORTANT: Docker-out-of-Docker (DooD) path matching
+  # When NanoClaw spawns agent containers, it passes volume mount paths to the
+  # docker CLI. The host docker daemon interprets these as HOST paths.
+  # Therefore, we must use HOST paths inside this container so that
+  # process.cwd() returns a path that's valid on the host filesystem.
   dockerComposeContent = ''
     services:
       nanoclaw:
         image: node:24
         container_name: nanoclaw
-        working_dir: /app
+        working_dir: ${nanoclawDir}/repo
         command:
           - sh
           - -c
@@ -52,16 +58,20 @@ let
             exec node dist/index.js
         restart: unless-stopped
         env_file:
-          - .env
+          - ${nanoclawDir}/.env
         environment:
           - DOCKER_HOST=unix:///var/run/docker.sock
+          # HOME must also use host path for DooD path consistency
+          - HOME=${nanoclawDir}
         volumes:
-          # Mount source code (allows skill modifications)
-          - ${nanoclawDir}/repo:/app:rw
-          # Mount data directories
-          - ${nanoclawDir}/data:/app/data:rw
-          - ${nanoclawDir}/store:/app/store:rw
-          - ${nanoclawDir}/groups:/app/groups:rw
+          # Mount .env file for environment configuration
+          - ${nanoclawDir}/.env:${nanoclawDir}/.env:ro
+          # Mount using same paths as host (DooD path matching)
+          # This ensures process.cwd() returns paths valid on the host
+          - ${nanoclawDir}/repo:${nanoclawDir}/repo:rw
+          - ${nanoclawDir}/data:${nanoclawDir}/data:rw
+          - ${nanoclawDir}/store:${nanoclawDir}/store:rw
+          - ${nanoclawDir}/groups:${nanoclawDir}/groups:rw
           # Mount podman socket as docker socket
           - /run/podman/podman.sock:/var/run/docker.sock:rw
         # Use default podman network for reliable DNS resolution
