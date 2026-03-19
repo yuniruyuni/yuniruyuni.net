@@ -65,7 +65,8 @@ let
           - HOME=${nanoclawDir}
         volumes:
           # Mount .env file for environment configuration
-          - ${nanoclawDir}/.env:${nanoclawDir}/.env:ro
+          # Mount .env to repo dir (readEnvFile reads from cwd/.env)
+          - ${nanoclawDir}/.env:${nanoclawDir}/repo/.env:ro
           # Mount using same paths as host (DooD path matching)
           # This ensures process.cwd() returns paths valid on the host
           - ${nanoclawDir}/repo:${nanoclawDir}/repo:rw
@@ -74,6 +75,9 @@ let
           - ${nanoclawDir}/groups:${nanoclawDir}/groups:rw
           # Mount podman socket as docker socket
           - /run/podman/podman.sock:/var/run/docker.sock:rw
+        # Expose credential proxy port for agent containers to access via host.docker.internal
+        ports:
+          - "3001:3001"
         # Use default podman network for reliable DNS resolution
         network_mode: bridge
   '';
@@ -89,8 +93,9 @@ ASSISTANT_NAME=MrDamian
 
 # Ollama with Anthropic API compatibility
 # Use host network IP for container access
+# ANTHROPIC_API_KEY triggers api-key auth mode (not oauth)
 ANTHROPIC_BASE_URL=http://host.containers.internal:11434/v1
-ANTHROPIC_AUTH_TOKEN=ollama
+ANTHROPIC_API_KEY=ollama
 MODEL=qwen3:4b
 
 # Container settings
