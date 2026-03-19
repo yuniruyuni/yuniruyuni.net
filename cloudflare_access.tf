@@ -2,7 +2,7 @@
 # Zero Trust Access - Identity Providers
 # =============================================================================
 
-# Google OAuth (primary - requires Google 2-Step Verification for MFA)
+# Google OAuth (primary authentication)
 resource "cloudflare_zero_trust_access_identity_provider" "google" {
   account_id = var.cloudflare_account_id
   name       = "Google"
@@ -14,27 +14,23 @@ resource "cloudflare_zero_trust_access_identity_provider" "google" {
   }
 }
 
-# Note: Cloudflare's built-in One-Time Pin (Email OTP) is always available
-# as a backup and does not require an explicit resource.
-
 # =============================================================================
 # Zero Trust Access - Reusable Policy
 # =============================================================================
 
-resource "cloudflare_zero_trust_access_policy" "owner_mfa" {
+moved {
+  from = cloudflare_zero_trust_access_policy.owner_mfa
+  to   = cloudflare_zero_trust_access_policy.owner
+}
+
+resource "cloudflare_zero_trust_access_policy" "owner" {
   account_id = var.cloudflare_account_id
-  name       = "Owner with MFA"
+  name       = "Owner"
   decision   = "allow"
 
   include = [{
     email = {
       email = var.owner_email
-    }
-  }]
-
-  require = [{
-    auth_method = {
-      auth_method = "mfa"
     }
   }]
 }
@@ -52,6 +48,11 @@ locals {
   }
 }
 
+import {
+  to = cloudflare_zero_trust_access_application.apps["n8n"]
+  id = "zones/${data.cloudflare_zone.main.zone_id}/60dce45b-534e-4b3f-bf05-4d245eac54f6"
+}
+
 resource "cloudflare_zero_trust_access_application" "apps" {
   for_each = local.access_applications
 
@@ -61,8 +62,11 @@ resource "cloudflare_zero_trust_access_application" "apps" {
   type             = "self_hosted"
   session_duration = "24h"
 
+  allowed_idps              = [cloudflare_zero_trust_access_identity_provider.google.id]
+  auto_redirect_to_identity = true
+
   policies = [{
-    id         = cloudflare_zero_trust_access_policy.owner_mfa.id
+    id         = cloudflare_zero_trust_access_policy.owner.id
     precedence = 1
   }]
 }
