@@ -58,12 +58,8 @@ let
           - ${nanoclawDir}/groups:/app/groups:rw
           # Mount podman socket as docker socket
           - /run/podman/podman.sock:/var/run/docker.sock:rw
-        networks:
-          - nanoclaw-net
-
-    networks:
-      nanoclaw-net:
-        driver: bridge
+        # Use default podman network for reliable DNS resolution
+        network_mode: bridge
   '';
 
   # Environment file generation script
