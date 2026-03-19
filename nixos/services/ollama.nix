@@ -11,9 +11,10 @@
     port = 11434;
 
     # Available models:
+    # - fuukeidaisuki/qwen3-swallow-v0.2:8b-rl - Best Japanese 8B model (Tokyo Tech + AIST)
     # - gemma3:4b - Japanese support, 140+ languages, good quality
     # - smollm2:1.7b - lightweight, fast CPU inference, English-focused
-    loadModels = [ "gemma3:4b" "smollm2:1.7b" ];
+    loadModels = [ "fuukeidaisuki/qwen3-swallow-v0.2:8b-rl" "gemma3:4b" "smollm2:1.7b" ];
   };
 
   # Allow Podman containers to access Ollama
