@@ -1,5 +1,5 @@
 # Ollama service configuration
-# Local LLM runtime for NanoClaw with Anthropic API compatibility
+# Local LLM runtime with models for n8n integration
 
 { config, pkgs, lib, ... }:
 
@@ -10,8 +10,10 @@
     host = "0.0.0.0";
     port = 11434;
 
-    # SmolLM2 1.7B - lightweight model optimized for CPU inference
-    loadModels = [ "smollm2:1.7b" ];
+    # Available models:
+    # - gemma3:4b - Japanese support, 140+ languages, good quality
+    # - smollm2:1.7b - lightweight, fast CPU inference, English-focused
+    loadModels = [ "gemma3:4b" "smollm2:1.7b" ];
   };
 
   # Allow Podman containers to access Ollama
