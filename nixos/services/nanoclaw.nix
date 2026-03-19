@@ -43,6 +43,8 @@ EOF
 
   # Build agent container image script
   nanoclawContainerBuild = pkgs.writeShellScript "nanoclaw-build-container" ''
+    set -euo pipefail
+
     # Check if image already exists
     if ${pkgs.podman}/bin/podman image exists nanoclaw-agent:latest 2>/dev/null; then
       echo "Container image nanoclaw-agent:latest already exists, skipping build"
@@ -51,10 +53,12 @@ EOF
 
     echo "Building NanoClaw agent container image..."
     TMPDIR=$(mktemp -d)
+    trap "rm -rf $TMPDIR" EXIT
+
     cp -r ${nanoclawSrc}/* "$TMPDIR/"
-    cd "$TMPDIR"
-    ${pkgs.podman}/bin/podman build -t nanoclaw-agent:latest -f container/Dockerfile .
-    rm -rf "$TMPDIR"
+    # Dockerfile expects to run from container/ directory
+    cd "$TMPDIR/container"
+    ${pkgs.podman}/bin/podman build -t nanoclaw-agent:latest .
     echo "Container image built successfully"
   '';
 
