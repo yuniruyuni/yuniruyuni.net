@@ -31,7 +31,8 @@
 
     firewall = {
       enable = true;
-      allowedTCPPorts = [ 22 ];  # SSH direct access
+      # No ports open to internet - all access via Cloudflare Tunnel
+      allowedTCPPorts = [ ];
       trustedInterfaces = [ "incusbr0" "incusbr1" ];  # Allow Incus container traffic
     };
   };
