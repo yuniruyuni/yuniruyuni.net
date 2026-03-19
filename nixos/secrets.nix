@@ -33,12 +33,5 @@
       group = "root";
       mode = "0400";
     };
-
-    discord-bot-token = {
-      file = ./secrets/discord-bot-token.age;
-      owner = "nanoclaw";
-      group = "nanoclaw";
-      mode = "0400";
-    };
   };
 }
