@@ -14,7 +14,6 @@
     ./services/incus.nix
     ./services/incus-backup.nix
     ./services/monitoring.nix
-    ./services/ollama.nix
   ];
 
   # Boot configuration
