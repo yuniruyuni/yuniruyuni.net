@@ -10,8 +10,8 @@
     host = "0.0.0.0";
     port = 11434;
 
-    # Qwen 3.5 4B - multimodal model with tool calling support
-    loadModels = [ "qwen3.5:4b" ];
+    # Qwen 3 4B - tool calling support (qwen3.5 has GGUF issues in Ollama)
+    loadModels = [ "qwen3:4b" ];
   };
 
   # Allow Podman containers to access Ollama
