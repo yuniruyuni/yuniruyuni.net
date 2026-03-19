@@ -15,7 +15,6 @@
     ./services/incus-backup.nix
     ./services/monitoring.nix
     ./services/ollama.nix
-    ./services/nanoclaw.nix
   ];
 
   # Boot configuration
