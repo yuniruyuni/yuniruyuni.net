@@ -257,7 +257,8 @@ in
     serviceConfig = {
       Type = "simple";
       WorkingDirectory = nanoclawDir;
-      ExecStartPre = "${pkgs.podman-compose}/bin/podman-compose pull --ignore-pull-failures";
+      # podman-compose pull may fail if network is unavailable, so use '|| true'
+      ExecStartPre = "${pkgs.bash}/bin/bash -c '${pkgs.podman-compose}/bin/podman-compose pull || true'";
       ExecStart = "${pkgs.podman-compose}/bin/podman-compose up";
       ExecStop = "${pkgs.podman-compose}/bin/podman-compose down";
       Restart = "on-failure";
