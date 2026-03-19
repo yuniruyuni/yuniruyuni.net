@@ -49,10 +49,6 @@ locals {
       name   = "n8n"
       domain = "n8n.${var.zone_name}"
     }
-    ssh = {
-      name   = "SSH"
-      domain = "ssh.${var.zone_name}"
-    }
   }
 }
 
