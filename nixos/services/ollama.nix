@@ -11,10 +11,18 @@
     port = 11434;
 
     # Available models:
+    # - qwen3.5:9b-q4_K_M - Qwen3.5 9B with Q4_K_M quantization (256K context)
+    # - phi4-mini:3.8b-q8_0 - Microsoft Phi-4-mini with Q8_0 quantization
     # - fuukeidaisuki/qwen3-swallow-v0.2:8b-rl - Best Japanese 8B model (Tokyo Tech + AIST)
     # - gemma3:4b - Japanese support, 140+ languages, good quality
     # - smollm2:1.7b - lightweight, fast CPU inference, English-focused
-    loadModels = [ "fuukeidaisuki/qwen3-swallow-v0.2:8b-rl" "gemma3:4b" "smollm2:1.7b" ];
+    loadModels = [
+      "qwen3.5:9b-q4_K_M"
+      "phi4-mini:3.8b-q8_0"
+      "fuukeidaisuki/qwen3-swallow-v0.2:8b-rl"
+      "gemma3:4b"
+      "smollm2:1.7b"
+    ];
   };
 
   # Allow Podman containers to access Ollama
