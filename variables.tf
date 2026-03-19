@@ -32,6 +32,18 @@ variable "vps_ip_address" {
   sensitive   = true
 }
 
+variable "google_oauth_client_id" {
+  description = "Google OAuth 2.0 Client ID for Cloudflare Access"
+  type        = string
+  sensitive   = true
+}
+
+variable "google_oauth_client_secret" {
+  description = "Google OAuth 2.0 Client Secret for Cloudflare Access"
+  type        = string
+  sensitive   = true
+}
+
 # =============================================================================
 # GCP Variables
 # =============================================================================
