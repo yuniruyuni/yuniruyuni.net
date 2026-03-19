@@ -29,6 +29,12 @@ let
           - |
             echo "=== NanoClaw Startup ==="
 
+            # Install Docker CLI if not already installed (required for container runtime)
+            if ! command -v docker >/dev/null 2>&1; then
+              echo "Installing Docker CLI..."
+              apt-get update -qq && apt-get install -y -qq docker.io >/dev/null 2>&1
+            fi
+
             # Install dependencies if needed (check for .package-lock.json as completion marker)
             if [ ! -f node_modules/.package-lock.json ]; then
               echo "Installing dependencies (this may take a while for native modules)..."
