@@ -10,8 +10,8 @@
     host = "0.0.0.0";
     port = 11434;
 
-    # Qwen 3 4B - tool calling support (NixOS 25.11 has Ollama 0.9+)
-    loadModels = [ "qwen3:4b" ];
+    # SmolLM2 1.7B - lightweight model optimized for CPU inference
+    loadModels = [ "smollm2:1.7b" ];
   };
 
   # Allow Podman containers to access Ollama
