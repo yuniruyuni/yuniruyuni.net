@@ -18,6 +18,11 @@ resource "cloudflare_zero_trust_access_identity_provider" "google" {
 # Zero Trust Access - Reusable Policy
 # =============================================================================
 
+moved {
+  from = cloudflare_zero_trust_access_policy.owner_mfa
+  to   = cloudflare_zero_trust_access_policy.owner
+}
+
 resource "cloudflare_zero_trust_access_policy" "owner" {
   account_id = var.cloudflare_account_id
   name       = "Owner"
@@ -41,6 +46,11 @@ locals {
       domain = "n8n.${var.zone_name}"
     }
   }
+}
+
+import {
+  to = cloudflare_zero_trust_access_application.apps["n8n"]
+  id = "zones/${data.cloudflare_zone.main.zone_id}/60dce45b-534e-4b3f-bf05-4d245eac54f6"
 }
 
 resource "cloudflare_zero_trust_access_application" "apps" {
