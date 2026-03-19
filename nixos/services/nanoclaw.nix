@@ -14,14 +14,34 @@ let
   nanoclawDir = "/var/lib/nanoclaw";
 
   # Docker-compose configuration for NanoClaw
-  # This file is generated and can be customized
+  # Single container handles setup (npm ci, build) and runs the app
+  # This avoids podman-compose depends_on race conditions
   dockerComposeContent = ''
     services:
       nanoclaw:
         image: node:22-slim
         container_name: nanoclaw
         working_dir: /app
-        command: ["node", "dist/index.js"]
+        command:
+          - sh
+          - -c
+          - |
+            echo "=== NanoClaw Startup ==="
+
+            # Install dependencies if needed
+            if [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.json ]; then
+              echo "Installing dependencies..."
+              npm ci --production=false
+            fi
+
+            # Build if needed
+            if [ ! -f dist/index.js ]; then
+              echo "Building NanoClaw..."
+              npm run build
+            fi
+
+            echo "Starting NanoClaw..."
+            exec node dist/index.js
         restart: unless-stopped
         env_file:
           - .env
@@ -36,30 +56,6 @@ let
           - ${nanoclawDir}/groups:/app/groups:rw
           # Mount podman socket as docker socket
           - /run/podman/podman.sock:/var/run/docker.sock:rw
-        depends_on:
-          setup:
-            condition: service_completed_successfully
-        networks:
-          - nanoclaw-net
-
-      setup:
-        image: node:22-slim
-        container_name: nanoclaw-setup
-        working_dir: /app
-        command: >
-          sh -c "
-            if [ ! -d node_modules ]; then
-              echo 'Installing dependencies...' &&
-              npm ci --production=false;
-            fi &&
-            if [ ! -d dist ]; then
-              echo 'Building NanoClaw...' &&
-              npm run build;
-            fi &&
-            echo 'Setup complete'
-          "
-        volumes:
-          - ${nanoclawDir}/repo:/app:rw
         networks:
           - nanoclaw-net
 
