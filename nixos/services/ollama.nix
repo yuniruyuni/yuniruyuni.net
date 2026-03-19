@@ -10,7 +10,7 @@
     host = "0.0.0.0";
     port = 11434;
 
-    # Qwen 3 4B - tool calling support (qwen3.5 has GGUF issues in Ollama)
+    # Qwen 3 4B - tool calling support (NixOS 25.11 has Ollama 0.9+)
     loadModels = [ "qwen3:4b" ];
   };
 
