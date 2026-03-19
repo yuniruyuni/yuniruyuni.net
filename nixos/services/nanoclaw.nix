@@ -101,6 +101,9 @@ in
     home = "/var/lib/nanoclaw";
     createHome = true;
     extraGroups = [ "podman" ];
+    # Required for rootless podman
+    subUidRanges = [{ startUid = 100000; count = 65536; }];
+    subGidRanges = [{ startGid = 100000; count = 65536; }];
   };
   users.groups.nanoclaw = {};
 
@@ -159,12 +162,18 @@ in
       Type = "simple";
       User = "nanoclaw";
       Group = "nanoclaw";
+      SupplementaryGroups = [ "podman" ];
       WorkingDirectory = "/var/lib/nanoclaw";
       EnvironmentFile = "/var/lib/nanoclaw/.env";
       ExecStartPre = "+${nanoclawSetup}";
       ExecStart = "${pkgs.nodejs_22}/bin/node dist/index.js";
       Restart = "on-failure";
       RestartSec = "10s";
+
+      # Use root podman via socket (container images are built as root)
+      Environment = [
+        "DOCKER_HOST=unix:///run/podman/podman.sock"
+      ];
 
       # Security hardening
       NoNewPrivileges = true;
