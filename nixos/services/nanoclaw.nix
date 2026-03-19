@@ -37,7 +37,8 @@ let
           # Mount podman socket as docker socket
           - /run/podman/podman.sock:/var/run/docker.sock:rw
         depends_on:
-          - setup
+          setup:
+            condition: service_completed_successfully
         networks:
           - nanoclaw-net
 
