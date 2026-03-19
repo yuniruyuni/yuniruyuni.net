@@ -23,8 +23,10 @@ DISCORD_BOT_TOKEN=$DISCORD_TOKEN
 ASSISTANT_NAME=MrDamian
 
 # Ollama with Anthropic API compatibility
-ANTHROPIC_BASE_URL=http://host.containers.internal:11434
+# Main process uses localhost, containers use host.containers.internal
+ANTHROPIC_BASE_URL=http://localhost:11434/v1
 ANTHROPIC_AUTH_TOKEN=ollama
+MODEL=qwen3:4b
 
 # Container settings
 CONTAINER_RUNTIME=podman
@@ -64,20 +66,24 @@ EOF
     if [ ! -f "package.json" ]; then
       echo "Initializing NanoClaw from source..."
       cp -r ${nanoclawSrc}/* .
-      chown -R nanoclaw:nanoclaw /var/lib/nanoclaw
     fi
 
     # Install dependencies if needed
     if [ ! -d "node_modules" ]; then
       echo "Installing dependencies..."
+      export HOME=/var/lib/nanoclaw
       ${pkgs.nodejs_22}/bin/npm ci --production=false
     fi
 
     # Build if needed
     if [ ! -d "dist" ]; then
       echo "Building NanoClaw..."
+      export HOME=/var/lib/nanoclaw
       ${pkgs.nodejs_22}/bin/npm run build
     fi
+
+    # Ensure correct ownership after setup (runs as root)
+    chown -R nanoclaw:nanoclaw /var/lib/nanoclaw
 
     echo "NanoClaw setup complete"
   '';
@@ -143,7 +149,7 @@ in
     ];
     wants = [ "ollama.service" ];
 
-    path = [ pkgs.nodejs_22 pkgs.podman pkgs.git ];
+    path = [ pkgs.nodejs_22 pkgs.podman pkgs.git pkgs.bash pkgs.coreutils ];
 
     serviceConfig = {
       Type = "simple";
