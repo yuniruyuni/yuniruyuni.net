@@ -16,10 +16,11 @@ let
   # Docker-compose configuration for NanoClaw
   # Single container handles setup (npm ci, build) and runs the app
   # This avoids podman-compose depends_on race conditions
+  # Using node:24 LTS (not slim) for native module compilation (better-sqlite3)
   dockerComposeContent = ''
     services:
       nanoclaw:
-        image: node:22-slim
+        image: node:24
         container_name: nanoclaw
         working_dir: /app
         command:
@@ -28,9 +29,10 @@ let
           - |
             echo "=== NanoClaw Startup ==="
 
-            # Install dependencies if needed
-            if [ ! -d node_modules ] || [ ! -f node_modules/.package-lock.json ]; then
-              echo "Installing dependencies..."
+            # Install dependencies if needed (check for .package-lock.json as completion marker)
+            if [ ! -f node_modules/.package-lock.json ]; then
+              echo "Installing dependencies (this may take a while for native modules)..."
+              rm -rf node_modules
               npm ci --production=false
             fi
 
@@ -266,7 +268,7 @@ in
 
   # Install dependencies and helper scripts
   environment.systemPackages = with pkgs; [
-    nodejs_22
+    nodejs_24
     podman
     podman-compose
     git
