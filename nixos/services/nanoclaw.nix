@@ -156,7 +156,8 @@ in
     ];
     wants = [ "ollama.service" ];
 
-    path = [ pkgs.nodejs_22 pkgs.podman pkgs.git pkgs.bash pkgs.coreutils ];
+    # Include docker-client for NanoClaw which uses 'docker' command
+    path = [ pkgs.nodejs_22 pkgs.podman pkgs.docker-client pkgs.git pkgs.bash pkgs.coreutils ];
 
     serviceConfig = {
       Type = "simple";
