@@ -45,3 +45,5 @@ jobs:
           TF_VAR_vps_ip_address: ${{ secrets.VPS_IP_ADDRESS }}
           TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_owner_email: ${{ secrets.OWNER_EMAIL }}
+          TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
