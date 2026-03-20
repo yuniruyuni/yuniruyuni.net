@@ -48,32 +48,6 @@ resource "google_project_service" "required" {
   disable_on_destroy = false
 }
 
-# State migration for APIs
-moved {
-  from = google_project_service.run
-  to   = google_project_service.required["run.googleapis.com"]
-}
-
-moved {
-  from = google_project_service.compute
-  to   = google_project_service.required["compute.googleapis.com"]
-}
-
-moved {
-  from = google_project_service.iam
-  to   = google_project_service.required["iam.googleapis.com"]
-}
-
-moved {
-  from = google_project_service.iamcredentials
-  to   = google_project_service.required["iamcredentials.googleapis.com"]
-}
-
-moved {
-  from = google_project_service.artifactregistry
-  to   = google_project_service.required["artifactregistry.googleapis.com"]
-}
-
 # =============================================================================
 # Artifact Registry (for Cloud Run container images)
 # =============================================================================
@@ -159,22 +133,6 @@ resource "google_project_iam_member" "github_apps_deployer" {
   project  = var.gcp_project_id
   role     = each.value
   member   = "serviceAccount:${google_service_account.github_apps_deployer.email}"
-}
-
-# State migration for deployer roles
-moved {
-  from = google_project_iam_member.github_apps_deployer_run_developer
-  to   = google_project_iam_member.github_apps_deployer["roles/run.developer"]
-}
-
-moved {
-  from = google_project_iam_member.github_apps_deployer_sa_user
-  to   = google_project_iam_member.github_apps_deployer["roles/iam.serviceAccountUser"]
-}
-
-moved {
-  from = google_project_iam_member.github_apps_deployer_artifact_registry_writer
-  to   = google_project_iam_member.github_apps_deployer["roles/artifactregistry.writer"]
 }
 
 # Tunnel Gateway (for GCE to invoke Cloud Run)
@@ -297,22 +255,6 @@ data "google_cloud_run_service" "services" {
   location = var.gcp_region
 }
 
-# State migration for Cloud Run data sources
-moved {
-  from = data.google_cloud_run_service.costume
-  to   = data.google_cloud_run_service.services["costume"]
-}
-
-moved {
-  from = data.google_cloud_run_service.lom
-  to   = data.google_cloud_run_service.services["lom"]
-}
-
-moved {
-  from = data.google_cloud_run_service.stream_tag_inventory
-  to   = data.google_cloud_run_service.services["stream_tag_inventory"]
-}
-
 # =============================================================================
 # Cloud Run Invoker (consolidated with for_each)
 # =============================================================================
@@ -328,18 +270,3 @@ resource "google_cloud_run_service_iam_member" "public_invoker" {
   member   = "allUsers"
 }
 
-# State migration for Cloud Run IAM
-moved {
-  from = google_cloud_run_service_iam_member.public_invoker_costume
-  to   = google_cloud_run_service_iam_member.public_invoker["costume"]
-}
-
-moved {
-  from = google_cloud_run_service_iam_member.public_invoker_lom
-  to   = google_cloud_run_service_iam_member.public_invoker["lom"]
-}
-
-moved {
-  from = google_cloud_run_service_iam_member.public_invoker_stream_tag_inventory
-  to   = google_cloud_run_service_iam_member.public_invoker["stream_tag_inventory"]
-}
