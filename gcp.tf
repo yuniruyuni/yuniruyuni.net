@@ -284,7 +284,7 @@ resource "google_cloud_run_service_iam_member" "public_invoker" {
 # Secret Manager (for Cloud Run database credentials)
 # =============================================================================
 
-# App DB password (DML user) — one per db_app
+# Owner/migration DB password (DDL) — one per db_app
 resource "google_secret_manager_secret" "db_password" {
   for_each  = local.db_apps
   secret_id = "${each.value.service_name}-db-password"
@@ -296,10 +296,10 @@ resource "google_secret_manager_secret" "db_password" {
   depends_on = [google_project_service.required]
 }
 
-# Admin DB password (DDL/migration user) — one per db_app
-resource "google_secret_manager_secret" "db_admin_password" {
+# App DB password (DML only) — one per db_app
+resource "google_secret_manager_secret" "db_app_password" {
   for_each  = local.db_apps
-  secret_id = "${each.value.service_name}-db-admin-password"
+  secret_id = "${each.value.service_name}-db-app-password"
 
   replication {
     auto {}
@@ -316,9 +316,9 @@ resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
 
-resource "google_secret_manager_secret_iam_member" "db_admin_password_accessor" {
+resource "google_secret_manager_secret_iam_member" "db_app_password_accessor" {
   for_each  = local.db_apps
-  secret_id = google_secret_manager_secret.db_admin_password[each.key].id
+  secret_id = google_secret_manager_secret.db_app_password[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
