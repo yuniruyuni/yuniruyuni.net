@@ -60,8 +60,9 @@ in
     }
   ]) dbApps);
 
-  # Set passwords after PostgreSQL starts
-  # Note: DML privileges for _app users are managed by pgschema via schema.sql
+  # Set passwords + grant DML privileges after PostgreSQL starts
+  # Note: privileges are managed here (not pgschema) because pgschema's
+  # internal validation uses a temporary schema where app roles don't exist.
   systemd.services.postgresql-app-credentials = {
     after = [ "postgresql.service" "postgresql-setup.service" ];
     requires = [ "postgresql.service" "postgresql-setup.service" ];
@@ -72,14 +73,21 @@ in
       ExecStart = pkgs.writeShellScript "postgresql-app-credentials" (
         lib.concatMapStringsSep "\n" (app: let
           psql = "${config.services.postgresql.package}/bin/psql";
+          db = app.name;
           owner = app.name;
           appUser = "${app.name}_app";
         in ''
           OWNER_PW=$(cat ${config.age.secrets."db-password-${app.name}".path})
           APP_PW=$(cat ${config.age.secrets."db-password-${app.name}_app".path})
-          ${psql} <<SQL
+          ${psql} -d ${db} <<SQL
             ALTER USER ${owner} WITH PASSWORD '$OWNER_PW';
             ALTER USER ${appUser} WITH PASSWORD '$APP_PW';
+            GRANT CONNECT ON DATABASE ${db} TO ${appUser};
+            GRANT USAGE ON SCHEMA public TO ${appUser};
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${appUser};
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${appUser};
+            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${appUser};
+            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${appUser};
           SQL
         '') dbApps
       );
