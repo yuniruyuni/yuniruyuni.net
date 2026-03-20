@@ -21,8 +21,6 @@ in
     package = pkgs.postgresql_18;
 
     settings = {
-      listen_addresses = lib.mkForce "127.0.0.1";
-      port = 5432;
       # Prevent ALTER USER passwords from appearing in PG logs
       log_statement = "none";
     };
