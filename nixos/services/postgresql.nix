@@ -61,14 +61,14 @@ in
   ]) dbApps);
 
   # Set passwords + grant DML privileges after PostgreSQL starts
-  systemd.services.postgresql-setup = {
+  systemd.services.postgresql-app-credentials = {
     after = [ "postgresql.service" ];
     requires = [ "postgresql.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
       User = "postgres";
-      ExecStart = pkgs.writeShellScript "postgresql-setup" (
+      ExecStart = pkgs.writeShellScript "postgresql-app-credentials" (
         lib.concatMapStringsSep "\n" (app: let
           psql = "${config.services.postgresql.package}/bin/psql";
           db = app.name;
