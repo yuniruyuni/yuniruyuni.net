@@ -19,6 +19,7 @@ locals {
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "artifactregistry.googleapis.com",
+    "secretmanager.googleapis.com",
   ])
 
   # Cloud Run services configuration
@@ -30,11 +31,20 @@ locals {
     web                  = { name = "web", hostname = "" }
   }
 
+  # DB-enabled apps: each gets 2 secrets (app password + admin password)
+  # New app: add one entry here
+  db_apps = {
+    stream_tag_inventory = {
+      service_name = "stream-tag-inventory"
+    }
+  }
+
   # GitHub Apps Deployer roles
   github_deployer_roles = toset([
     "roles/run.developer",
     "roles/iam.serviceAccountUser",
     "roles/artifactregistry.writer",
+    "roles/secretmanager.viewer",
   ])
 }
 
@@ -268,5 +278,48 @@ resource "google_cloud_run_service_iam_member" "public_invoker" {
   service  = each.value.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+# =============================================================================
+# Secret Manager (for Cloud Run database credentials)
+# =============================================================================
+
+# Owner/migration DB password (DDL) — one per db_app
+resource "google_secret_manager_secret" "db_password" {
+  for_each  = local.db_apps
+  secret_id = "${each.value.service_name}-db-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+# App DB password (DML only) — one per db_app
+resource "google_secret_manager_secret" "db_app_password" {
+  for_each  = local.db_apps
+  secret_id = "${each.value.service_name}-db-app-password"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+# Grant Cloud Run SA access to both secrets
+resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
+  for_each  = local.db_apps
+  secret_id = google_secret_manager_secret.db_password[each.key].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+}
+
+resource "google_secret_manager_secret_iam_member" "db_app_password_accessor" {
+  for_each  = local.db_apps
+  secret_id = google_secret_manager_secret.db_app_password[each.key].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
 

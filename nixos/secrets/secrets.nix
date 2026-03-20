@@ -36,4 +36,8 @@ in
 
   # rclone config for Google Drive backup
   "rclone-config.age".publicKeys = systems ++ admins;
+
+  # PostgreSQL DB passwords (per-app: owner + app user)
+  "db-password-stream_tag_inventory.age".publicKeys = systems ++ admins;
+  "db-password-stream_tag_inventory_app.age".publicKeys = systems ++ admins;
 }
