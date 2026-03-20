@@ -62,8 +62,8 @@ in
 
   # Set passwords + grant DML privileges after PostgreSQL starts
   systemd.services.postgresql-app-credentials = {
-    after = [ "postgresql.service" ];
-    requires = [ "postgresql.service" ];
+    after = [ "postgresql.service" "postgresql-setup.service" ];
+    requires = [ "postgresql.service" "postgresql-setup.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
