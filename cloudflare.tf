@@ -51,42 +51,6 @@ resource "cloudflare_dns_record" "records" {
   ttl     = each.value.proxied ? 1 : 300 # Auto for proxied, 5min for direct
 }
 
-# State migration: move old individual resources to new for_each resources
-moved {
-  from = cloudflare_dns_record.root
-  to   = cloudflare_dns_record.records["root"]
-}
-
-moved {
-  from = cloudflare_dns_record.wildcard
-  to   = cloudflare_dns_record.records["wildcard"]
-}
-
-moved {
-  from = cloudflare_dns_record.n8n
-  to   = cloudflare_dns_record.records["n8n"]
-}
-
-moved {
-  from = cloudflare_dns_record.ssh
-  to   = cloudflare_dns_record.records["ssh"]
-}
-
-moved {
-  from = cloudflare_dns_record.tags
-  to   = cloudflare_dns_record.records["tags"]
-}
-
-moved {
-  from = cloudflare_dns_record.costume
-  to   = cloudflare_dns_record.records["costume"]
-}
-
-moved {
-  from = cloudflare_dns_record.lom
-  to   = cloudflare_dns_record.records["lom"]
-}
-
 # =============================================================================
 # Tunnels
 # =============================================================================
