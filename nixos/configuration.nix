@@ -14,6 +14,8 @@
     ./services/incus.nix
     ./services/incus-backup.nix
     ./services/monitoring.nix
+    ./services/postgresql.nix
+    ./services/postgresql-backup.nix
   ];
 
   # Boot configuration

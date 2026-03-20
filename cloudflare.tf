@@ -27,6 +27,9 @@ locals {
     # SSH via VPS Tunnel (proxied through Cloudflare for Zero Trust access)
     ssh = { name = "ssh", type = "CNAME", target = "tunnel_main", proxied = true }
 
+    # PostgreSQL via VPS Tunnel (TCP proxied through Cloudflare)
+    db = { name = "db", type = "CNAME", target = "tunnel_main", proxied = true }
+
     # GCE Tunnel (CNAME to gce tunnel)
     # Root domain uses CNAME flattening (Cloudflare feature)
     root    = { name = var.zone_name, type = "CNAME", target = "tunnel_gce", proxied = true }
@@ -78,6 +81,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "ssh.${var.zone_name}"
         service  = "ssh://localhost:22"
+      },
+      # PostgreSQL access (via cloudflared access tcp)
+      {
+        hostname = "db.${var.zone_name}"
+        service  = "tcp://localhost:5432"
       },
       # Catch-all (required)
       {
