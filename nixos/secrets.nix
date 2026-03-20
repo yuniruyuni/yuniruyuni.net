@@ -1,5 +1,8 @@
 # Secrets configuration using agenix
 # Secrets are encrypted with age and decrypted at runtime
+#
+# Note: PostgreSQL DB password secrets are defined in services/postgresql.nix
+# (auto-derived from dbApps list)
 
 { config, ... }:
 
