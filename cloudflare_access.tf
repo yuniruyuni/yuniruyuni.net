@@ -79,7 +79,7 @@ resource "cloudflare_zero_trust_access_policy" "n8n_webhook_bypass" {
 # Access application for n8n webhook path
 resource "cloudflare_zero_trust_access_application" "n8n_webhook" {
   zone_id          = data.cloudflare_zone.main.zone_id
-  name             = "n8n-hooks.yuniruyuni.net"
+  name             = "n8n-hooks"
   domain           = "n8n.${var.zone_name}/webhook"
   type             = "self_hosted"
   session_duration = "24h"
