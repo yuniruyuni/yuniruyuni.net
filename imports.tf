@@ -8,5 +8,5 @@ import {
 
 import {
   to = cloudflare_zero_trust_access_policy.n8n_webhook_bypass
-  id = "accounts/9c274c96fde0997617734ce5c14ca3da/156388bf-0b62-4683-b5cd-b656f49f9235"
+  id = "9c274c96fde0997617734ce5c14ca3da/156388bf-0b62-4683-b5cd-b656f49f9235"
 }
