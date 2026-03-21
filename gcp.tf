@@ -323,3 +323,52 @@ resource "google_secret_manager_secret_iam_member" "db_app_password_accessor" {
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
 
+# =============================================================================
+# Secret Manager (Cloudflare Access service token for DB tunnel)
+# =============================================================================
+
+resource "google_secret_manager_secret" "cf_db_access_client_id" {
+  secret_id = "cf-db-access-client-id"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "cf_db_access_client_id" {
+  secret      = google_secret_manager_secret.cf_db_access_client_id.id
+  secret_data = cloudflare_zero_trust_access_service_token.cloud_run_db.client_id
+}
+
+resource "google_secret_manager_secret" "cf_db_access_client_secret" {
+  secret_id = "cf-db-access-client-secret"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "cf_db_access_client_secret" {
+  secret      = google_secret_manager_secret.cf_db_access_client_secret.id
+  secret_data = cloudflare_zero_trust_access_service_token.cloud_run_db.client_secret
+}
+
+# Grant all DB-enabled Cloud Run SAs access to the service token secrets
+resource "google_secret_manager_secret_iam_member" "cf_db_client_id_accessor" {
+  for_each  = local.db_apps
+  secret_id = google_secret_manager_secret.cf_db_access_client_id.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+}
+
+resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor" {
+  for_each  = local.db_apps
+  secret_id = google_secret_manager_secret.cf_db_access_client_secret.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+}
+
