@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Asia/Tokyo",
+  "automerge": false,
+  "packageRules": [
+    {
+      "description": "Group minor and patch updates into a single PR",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "minor-patch updates"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "n8n Docker image in Nix config",
+      "fileMatch": ["nixos/services/n8n\\.nix$"],
+      "matchStrings": ["image\\s*=\\s*\"(?<depName>n8nio/n8n):(?<currentValue>[^\"]+)\""],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "cloudflared version in GitHub Actions workflow",
+      "fileMatch": ["\\.github/workflows/.*\\.yml$"],
+      "matchStrings": ["CLOUDFLARED_VERSION=\"(?<currentValue>[^\"]+)\"\\s*\\n\\s*curl -L \"https://github\\.com/(?<depName>cloudflare/cloudflared)/releases/download"],
+      "datasourceTemplate": "github-releases"
+    }
+  ]
+}
