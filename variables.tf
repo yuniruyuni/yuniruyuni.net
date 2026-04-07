@@ -78,6 +78,7 @@ variable "github_repositories" {
     "costume",
     "LegendOfManaWeapon",
     "yuniruyuni.net",
+    "template",
     "web",
   ]
 }

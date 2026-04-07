@@ -40,4 +40,6 @@ in
   # PostgreSQL DB passwords (per-app: owner + app user)
   "db-password-stream_tag_inventory.age".publicKeys = systems ++ admins;
   "db-password-stream_tag_inventory_app.age".publicKeys = systems ++ admins;
+  "db-password-template.age".publicKeys = systems ++ admins;
+  "db-password-template_app.age".publicKeys = systems ++ admins;
 }

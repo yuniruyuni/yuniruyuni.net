@@ -12,7 +12,7 @@
 let
   dbApps = [
     { name = "stream_tag_inventory"; }
-    # New apps: add here
+    { name = "template"; }
   ];
 in
 {
