@@ -30,6 +30,9 @@ locals {
     # PostgreSQL via VPS Tunnel (TCP proxied through Cloudflare)
     db = { name = "db", type = "CNAME", target = "tunnel_main", proxied = true }
 
+    # Ollama via VPS Tunnel (HTTP proxied through Cloudflare)
+    ollama = { name = "ollama", type = "CNAME", target = "tunnel_main", proxied = true }
+
     # GCE Tunnel (CNAME to gce tunnel)
     # Root domain uses CNAME flattening (Cloudflare feature)
     root     = { name = var.zone_name, type = "CNAME", target = "tunnel_gce", proxied = true }
@@ -87,6 +90,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "db.${var.zone_name}"
         service  = "tcp://localhost:5432"
+      },
+      # Ollama service (HTTP, service-token-only access from Cloud Run)
+      {
+        hostname = "ollama.${var.zone_name}"
+        service  = "http://localhost:11434"
       },
       # Catch-all (required)
       {

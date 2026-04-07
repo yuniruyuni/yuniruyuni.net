@@ -132,3 +132,46 @@ resource "cloudflare_zero_trust_access_application" "db" {
     }
   ]
 }
+
+# =============================================================================
+# Zero Trust Access - Ollama (HTTP, service token auth from Cloud Run sidecars)
+# =============================================================================
+
+# Service token for Cloud Run → Ollama tunnel authentication
+resource "cloudflare_zero_trust_access_service_token" "cloud_run_ollama" {
+  account_id = var.cloudflare_account_id
+  name       = "Cloud Run Ollama Access"
+}
+
+# Policy: allow service token only
+resource "cloudflare_zero_trust_access_policy" "cloud_run_ollama" {
+  account_id = var.cloudflare_account_id
+  name       = "Cloud Run Ollama Service Token"
+  decision   = "non_identity"
+
+  include = [{
+    service_token = {
+      token_id = cloudflare_zero_trust_access_service_token.cloud_run_ollama.id
+    }
+  }]
+}
+
+# Access application for ollama.yuniruyuni.net
+resource "cloudflare_zero_trust_access_application" "ollama" {
+  zone_id          = data.cloudflare_zone.main.zone_id
+  name             = "Ollama"
+  domain           = "ollama.${var.zone_name}"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  policies = [
+    {
+      id         = cloudflare_zero_trust_access_policy.cloud_run_ollama.id
+      precedence = 1
+    },
+    {
+      id         = cloudflare_zero_trust_access_policy.owner.id
+      precedence = 2
+    }
+  ]
+}
