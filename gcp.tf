@@ -29,6 +29,7 @@ locals {
     lom                  = { name = "lom", hostname = "lom" }
     stream_tag_inventory = { name = "stream-tag-inventory", hostname = "tags" }
     web                  = { name = "web", hostname = "" }
+    template             = { name = "template", hostname = "template" }
   }
 
   # DB-enabled apps: each gets 2 secrets (app password + admin password)
@@ -36,6 +37,9 @@ locals {
   db_apps = {
     stream_tag_inventory = {
       service_name = "stream-tag-inventory"
+    }
+    template = {
+      service_name = "template"
     }
   }
 
