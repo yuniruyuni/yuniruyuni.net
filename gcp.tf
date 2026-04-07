@@ -46,7 +46,7 @@ locals {
   # Ollama-enabled apps: each granted access to the CF Access service token secrets
   # New app needing local LLM: add one entry here
   ollama_apps = {
-    # 例: stream_tag_inventory = { service_name = "stream-tag-inventory" }
+    template = { service_name = "template" }
   }
 
   # GitHub Apps Deployer roles
