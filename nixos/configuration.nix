@@ -11,7 +11,6 @@
     ./hardware-configuration.nix
     ./services/cloudflared.nix
     ./services/n8n.nix
-    ./services/ollama.nix
     ./services/incus.nix
     ./services/incus-backup.nix
     ./services/monitoring.nix
@@ -35,9 +34,7 @@
       enable = true;
       # No ports open to internet - all access via Cloudflare Tunnel
       allowedTCPPorts = [ ];
-      # Allow Incus container traffic + Podman bridge so the n8n container
-      # can reach host services like Ollama via host.containers.internal
-      trustedInterfaces = [ "incusbr0" "incusbr1" "podman0" ];
+      trustedInterfaces = [ "incusbr0" "incusbr1" ];  # Allow Incus container traffic
     };
   };
 
