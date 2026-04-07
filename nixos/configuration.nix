@@ -11,6 +11,7 @@
     ./hardware-configuration.nix
     ./services/cloudflared.nix
     ./services/n8n.nix
+    ./services/ollama.nix
     ./services/incus.nix
     ./services/incus-backup.nix
     ./services/monitoring.nix

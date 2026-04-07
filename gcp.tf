@@ -43,6 +43,12 @@ locals {
     }
   }
 
+  # Ollama-enabled apps: each granted access to the CF Access service token secrets
+  # New app needing local LLM: add one entry here
+  ollama_apps = {
+    # 例: stream_tag_inventory = { service_name = "stream-tag-inventory" }
+  }
+
   # GitHub Apps Deployer roles
   github_deployer_roles = toset([
     "roles/run.developer",
@@ -372,6 +378,55 @@ resource "google_secret_manager_secret_iam_member" "cf_db_client_id_accessor" {
 resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor" {
   for_each  = local.db_apps
   secret_id = google_secret_manager_secret.cf_db_access_client_secret.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+}
+
+# =============================================================================
+# Secret Manager (Cloudflare Access service token for Ollama tunnel)
+# =============================================================================
+
+resource "google_secret_manager_secret" "cf_ollama_access_client_id" {
+  secret_id = "cf-ollama-access-client-id"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "cf_ollama_access_client_id" {
+  secret      = google_secret_manager_secret.cf_ollama_access_client_id.id
+  secret_data = cloudflare_zero_trust_access_service_token.cloud_run_ollama.client_id
+}
+
+resource "google_secret_manager_secret" "cf_ollama_access_client_secret" {
+  secret_id = "cf-ollama-access-client-secret"
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "cf_ollama_access_client_secret" {
+  secret      = google_secret_manager_secret.cf_ollama_access_client_secret.id
+  secret_data = cloudflare_zero_trust_access_service_token.cloud_run_ollama.client_secret
+}
+
+# Grant Ollama-enabled Cloud Run SAs access to the service token secrets
+resource "google_secret_manager_secret_iam_member" "cf_ollama_client_id_accessor" {
+  for_each  = local.ollama_apps
+  secret_id = google_secret_manager_secret.cf_ollama_access_client_id.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+}
+
+resource "google_secret_manager_secret_iam_member" "cf_ollama_client_secret_accessor" {
+  for_each  = local.ollama_apps
+  secret_id = google_secret_manager_secret.cf_ollama_access_client_secret.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
