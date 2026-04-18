@@ -111,10 +111,12 @@ resource "google_project_iam_member" "terraform_github_plan" {
   member  = "serviceAccount:${google_service_account.terraform_github_plan.email}"
 }
 
-# State bucket access (locking requires read-write)
+# State bucket read-only access. Plan runs with -lock=false so no lock
+# create/delete is needed; objectViewer closes the state-tampering path
+# from any WIF token leak.
 resource "google_storage_bucket_iam_member" "terraform_state_plan" {
   bucket = google_storage_bucket.terraform_state.name
-  role   = "roles/storage.objectAdmin"
+  role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.terraform_github_plan.email}"
 }
 
