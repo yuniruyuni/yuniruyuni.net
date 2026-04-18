@@ -43,3 +43,23 @@ output "tunnel_gateway_service_account" {
   description = "Tunnel gateway service account email"
   value       = google_service_account.tunnel_gateway.email
 }
+
+# =============================================================================
+# CI (terraform-itself) Outputs — values to register in GitHub secrets
+# =============================================================================
+
+output "ci_workload_identity_provider" {
+  description = "Workload Identity Provider for Terraform CI (GCP_WORKLOAD_IDENTITY_PROVIDER)"
+  value       = google_iam_workload_identity_pool_provider.ci_github.name
+  sensitive   = true
+}
+
+output "ci_apply_service_account" {
+  description = "Apply SA email (GCP_SERVICE_ACCOUNT in apply environment)"
+  value       = google_service_account.terraform_github.email
+}
+
+output "ci_plan_service_account" {
+  description = "Plan SA email (GCP_SERVICE_ACCOUNT in plan environment)"
+  value       = google_service_account.terraform_github_plan.email
+}
