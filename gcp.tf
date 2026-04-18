@@ -20,6 +20,8 @@ locals {
     "iamcredentials.googleapis.com",
     "artifactregistry.googleapis.com",
     "secretmanager.googleapis.com",
+    "storage.googleapis.com",              # state bucket + SM usage
+    "cloudresourcemanager.googleapis.com", # project-level IAM management
   ])
 
   # Cloud Run services configuration
