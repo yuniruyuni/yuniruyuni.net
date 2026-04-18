@@ -90,6 +90,20 @@ resource "cloudflare_zero_trust_access_application" "n8n_webhook" {
   }]
 }
 
+# Access application for n8n REST API (authenticated by n8n API token)
+resource "cloudflare_zero_trust_access_application" "n8n_api" {
+  zone_id          = data.cloudflare_zone.main.zone_id
+  name             = "n8n-api"
+  domain           = "n8n.${var.zone_name}/api/v1"
+  type             = "self_hosted"
+  session_duration = "24h"
+
+  policies = [{
+    id         = cloudflare_zero_trust_access_policy.n8n_webhook_bypass.id
+    precedence = 1
+  }]
+}
+
 # =============================================================================
 # Zero Trust Access - PostgreSQL DB (TCP, service token auth)
 # =============================================================================
