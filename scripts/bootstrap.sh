@@ -172,11 +172,13 @@ log "Phase B: initializing terraform and importing bootstrap resources"
 cd "$REPO_ROOT"
 
 export TF_VAR_gcp_project_id="$PROJECT"
-# Provide dummy values for other required TF_VAR_* that terraform init /
-# import may evaluate. Values are not actually used during import since
-# import only needs the resource ID.
-export TF_VAR_cloudflare_api_token="${TF_VAR_cloudflare_api_token:-dummy}"
-export TF_VAR_cloudflare_account_id="${TF_VAR_cloudflare_account_id:-dummy}"
+# terraform import refreshes all data sources in the config, including
+# Cloudflare data sources that hit the real API. Real Cloudflare credentials
+# are therefore required even though we are only importing google resources.
+# Other vars get safe placeholders since no resource using them is imported.
+: "${TF_VAR_cloudflare_api_token:?set to a real Cloudflare API token (at minimum Zone:Read, Tunnel:Read)}"
+: "${TF_VAR_cloudflare_account_id:?set to the Cloudflare account ID}"
+export TF_VAR_cloudflare_api_token TF_VAR_cloudflare_account_id
 export TF_VAR_vps_ip_address="${TF_VAR_vps_ip_address:-0.0.0.0}"
 export TF_VAR_owner_email="${TF_VAR_owner_email:-dummy@example.com}"
 export TF_VAR_google_oauth_client_id="${TF_VAR_google_oauth_client_id:-dummy}"
