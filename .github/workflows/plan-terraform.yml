@@ -69,7 +69,13 @@ jobs:
         id: plan
         run: terraform plan -no-color -lock=false -out=tfplan
         env:
+          # CLOUDFLARE_API_TOKEN in the `plan` environment MUST be a Read-only token
+          # (no *:Edit scopes). Required scopes: Zone:Read, DNS:Read, Cloudflare Tunnel:Read,
+          # Access: Apps and Policies:Read, Access: Service Tokens:Read.
+          # The apply environment holds a separate, Edit-capable token under the same name.
           TF_VAR_cloudflare_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Remaining vars are configuration values that plan must evaluate to produce an
+          # accurate diff (resource attributes reference them). They are not apply-specific.
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           TF_VAR_vps_ip_address: ${{ secrets.VPS_IP_ADDRESS }}
           TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}

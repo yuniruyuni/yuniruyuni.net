@@ -231,7 +231,7 @@ resource "google_compute_instance" "tunnel_gateway" {
         containers = [{
           name  = "cloudflared"
           image = "cloudflare/cloudflared:2026.3.0"
-          args  = ["tunnel", "--no-autoupdate", "run", "--token", data.cloudflare_zero_trust_tunnel_cloudflared_token.gce.token]
+          args  = ["tunnel", "--no-autoupdate", "run", "--token", local.gce_tunnel_token]
           securityContext = {
             privileged = false
           }
