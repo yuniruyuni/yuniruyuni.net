@@ -6,13 +6,22 @@
 #   - ${app.name}_app  : application user (DML only)
 # Access: localhost only (tunnel handles external connectivity)
 # New app: add entry to dbApps list + create 2 agenix secrets
+#
+# pgschemaManagesGrants:
+#   true  = per-table GRANT / ALTER DEFAULT PRIVILEGES はアプリ側 (pgschema
+#           declarative) が管理する。NixOS は CONNECT / schema USAGE のみ付与
+#           (推奨: 新 table を追加する際に GRANT が migration で同時反映され、
+#           permission denied の時間帯が発生しない)
+#   false = NixOS 側で GRANT ... ON ALL TABLES + ALTER DEFAULT PRIVILEGES を
+#           activation 毎に一括付与する (pgschema 移行前のアプリ向け fallback)
+# 詳細は StreamTagInventory の ADR 0009 を参照。
 
 { config, pkgs, lib, ... }:
 
 let
   dbApps = [
-    { name = "stream_tag_inventory"; }
-    { name = "template"; }
+    { name = "stream_tag_inventory"; pgschemaManagesGrants = true; }
+    { name = "template";             pgschemaManagesGrants = false; }
   ];
 in
 {
@@ -60,9 +69,10 @@ in
     }
   ]) dbApps);
 
-  # Set passwords + grant DML privileges after PostgreSQL starts
-  # Note: privileges are managed here (not pgschema) because pgschema's
-  # internal validation uses a temporary schema where app roles don't exist.
+  # Set passwords + DB/schema-level privileges after PostgreSQL starts.
+  # app.pgschemaManagesGrants = true のアプリは per-table GRANT / ALTER DEFAULT
+  # PRIVILEGES を pgschema 側で宣言するため、ここでは発行しない。false のアプリは
+  # 従来通り NixOS 側で GRANT ... ON ALL TABLES 等を付与する fallback パスを通る。
   systemd.services.postgresql-app-credentials = {
     after = [ "postgresql.service" "postgresql-setup.service" ];
     requires = [ "postgresql.service" "postgresql-setup.service" ];
@@ -76,6 +86,14 @@ in
           db = app.name;
           owner = app.name;
           appUser = "${app.name}_app";
+          # per-table / ALTER DEFAULT PRIVILEGES を pgschema 管理に委ねるか
+          pgschemaManaged = app.pgschemaManagesGrants or false;
+          legacyTableGrants = lib.optionalString (!pgschemaManaged) ''
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${appUser};
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${appUser};
+            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${appUser};
+            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${appUser};
+          '';
         in ''
           OWNER_PW=$(cat ${config.age.secrets."db-password-${app.name}".path})
           APP_PW=$(cat ${config.age.secrets."db-password-${app.name}_app".path})
@@ -84,10 +102,7 @@ in
             ALTER USER ${appUser} WITH PASSWORD '$APP_PW';
             GRANT CONNECT ON DATABASE ${db} TO ${appUser};
             GRANT USAGE ON SCHEMA public TO ${appUser};
-            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${appUser};
-            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${appUser};
-            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${appUser};
-            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${appUser};
+            ${legacyTableGrants}
           SQL
         '') dbApps
       );
