@@ -226,25 +226,24 @@ resource "google_compute_instance" "tunnel_gateway" {
   }
 
   metadata = {
-    gce-container-declaration = yamlencode({
-      spec = {
-        containers = [{
-          name  = "cloudflared"
-          image = "cloudflare/cloudflared:2026.3.0"
-          args  = ["tunnel", "--no-autoupdate", "run", "--token", local.gce_tunnel_token]
-          securityContext = {
-            privileged = false
-          }
-        }]
-        restartPolicy = "Always"
-      }
+    # Token is fetched at boot from Secret Manager instead of being baked into
+    # instance metadata. plan SA has compute viewer (can read metadata) but
+    # lacks secretmanager.secretAccessor on the tunnel-token secret, so the
+    # metadata side-channel that previously exposed the token is closed.
+    startup-script = templatefile("${path.module}/scripts/cloudflared-boot.sh.tftpl", {
+      project_id      = var.gcp_project_id
+      secret_name     = google_secret_manager_secret.gce_tunnel_token.secret_id
+      cloudflared_img = "cloudflare/cloudflared:2026.3.0"
     })
     google-logging-enabled = "true"
   }
 
   service_account {
-    email  = google_service_account.tunnel_gateway.email
-    scopes = ["logging-write", "monitoring-write"]
+    email = google_service_account.tunnel_gateway.email
+    # cloud-platform is required so the instance can exchange its SA identity
+    # for an access token against Secret Manager. Authorization is still gated
+    # by IAM on the specific secret (see gce_tunnel_token_accessor).
+    scopes = ["cloud-platform"]
   }
 
   scheduling {
@@ -258,7 +257,41 @@ resource "google_compute_instance" "tunnel_gateway" {
     container-vm = "cos-stable"
   }
 
+  depends_on = [
+    google_project_service.required,
+    # Ensure the secret + IAM binding exist before the instance boots and
+    # tries to fetch from Secret Manager via its startup-script.
+    google_secret_manager_secret_version.gce_tunnel_token,
+    google_secret_manager_secret_iam_member.gce_tunnel_token_accessor,
+  ]
+}
+
+# =============================================================================
+# Secret Manager (GCE tunnel token — fetched at boot, not baked into metadata)
+# =============================================================================
+
+resource "google_secret_manager_secret" "gce_tunnel_token" {
+  secret_id = "gce-tunnel-token"
+
+  replication {
+    auto {}
+  }
+
   depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "gce_tunnel_token" {
+  secret      = google_secret_manager_secret.gce_tunnel_token.id
+  secret_data = local.gce_tunnel_token
+}
+
+# Only the tunnel-gateway instance's SA can read this secret. plan SA (viewer)
+# has no secretmanager.secretAccessor, so a plan-SA token leak cannot escalate
+# into tunnel impersonation through this path.
+resource "google_secret_manager_secret_iam_member" "gce_tunnel_token_accessor" {
+  secret_id = google_secret_manager_secret.gce_tunnel_token.id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.tunnel_gateway.email}"
 }
 
 # =============================================================================
