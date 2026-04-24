@@ -158,6 +158,17 @@ resource "google_service_account" "tunnel_gateway" {
   description  = "Service account for GCE tunnel gateway to invoke Cloud Run"
 }
 
+# google-startup-scripts-runner flushes startup-script output to Cloud Logging.
+# Without logWriter it runs with "permission denied" warnings that obscure
+# real errors. The GSM secret access is already scoped via a per-secret
+# secretAccessor binding, so adding project-level logWriter doesn't widen the
+# blast radius in any meaningful way.
+resource "google_project_iam_member" "tunnel_gateway_logwriter" {
+  project = var.gcp_project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.tunnel_gateway.email}"
+}
+
 # =============================================================================
 # VPC Network with Private Google Access
 # =============================================================================
