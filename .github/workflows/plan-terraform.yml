@@ -32,7 +32,7 @@ jobs:
 
       - name: Comment skip message for fork PRs
         if: steps.fork-check.outputs.is_fork == 'true'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
             github.rest.issues.createComment({
@@ -58,7 +58,7 @@ jobs:
         if: steps.fork-check.outputs.is_fork == 'false'
         uses: hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85 # v4
         with:
-          terraform_version: "1.11"
+          terraform_version: "1.15.0"
 
       - name: Terraform Init
         if: steps.fork-check.outputs.is_fork == 'false'
@@ -86,7 +86,7 @@ jobs:
 
       - name: Comment PR with Plan
         if: steps.fork-check.outputs.is_fork == 'false'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         env:
           PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
