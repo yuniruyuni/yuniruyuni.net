@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'nixos/**'
+      - '.github/workflows/apply-nixos.yml'
   workflow_dispatch:
 
 permissions:
@@ -67,32 +68,114 @@ jobs:
 
       - name: Deploy NixOS configuration
         run: |
-          ssh yuniruyuni@ssh.yuniruyuni.net << 'DEPLOY'
-          set -e
+          ssh yuniruyuni@ssh.yuniruyuni.net "DEPLOY_UNIT='nixos-github-deploy-${GITHUB_RUN_ID}' bash -s" << 'DEPLOY'
+          set -euo pipefail
+
+          deploy_script="/tmp/${DEPLOY_UNIT}.sh"
+          deploy_log="/tmp/${DEPLOY_UNIT}.log"
+
+          cat > "$deploy_script" << SCRIPT
+          #!/run/current-system/sw/bin/bash
+          set -euo pipefail
+          exec > >(tee -a "$deploy_log") 2>&1
+
+          echo "Starting NixOS deployment at \$(date --iso-8601=seconds)"
 
           # Backup current configuration
-          sudo cp -r /etc/nixos /etc/nixos.bak.$(date +%Y%m%d%H%M%S)
+          cp -r /etc/nixos /etc/nixos.bak.\$(date +%Y%m%d%H%M%S)
 
           # Copy new configuration
-          sudo cp -r /tmp/nixos-config/* /etc/nixos/
+          cp -r /tmp/nixos-config/* /etc/nixos/
 
-          # Build and switch to new configuration
+          # Build and switch to new configuration. This may restart cloudflared,
+          # so it must not depend on the GitHub Actions SSH session staying up.
           cd /etc/nixos
-          sudo nixos-rebuild switch --flake .#vps
+          nixos-rebuild switch --flake .#vps
 
           # Cleanup
           rm -rf /tmp/nixos-config
+          rm -f "$deploy_script"
 
           echo "NixOS deployment completed successfully!"
+          SCRIPT
+
+          chmod +x "$deploy_script"
+          : > "$deploy_log"
+
+          sudo systemd-run \
+            --unit="$DEPLOY_UNIT" \
+            --description="GitHub Actions NixOS deployment" \
+            --setenv=PATH=/run/wrappers/bin:/run/current-system/sw/bin:/usr/bin:/bin \
+            --property=Type=exec \
+            /run/current-system/sw/bin/bash "$deploy_script"
           DEPLOY
 
       - name: Verify deployment
         run: |
-          ssh yuniruyuni@ssh.yuniruyuni.net << 'VERIFY'
+          DEPLOY_UNIT="nixos-github-deploy-${GITHUB_RUN_ID}"
+
+          ssh_retry() {
+            local attempt
+            for attempt in $(seq 1 90); do
+              if ssh -o ConnectTimeout=20 yuniruyuni@ssh.yuniruyuni.net "$@"; then
+                return 0
+              fi
+              echo "SSH attempt ${attempt} failed; retrying in 20 seconds..."
+              sleep 20
+            done
+            return 1
+          }
+
+          deploy_completed=0
+
+          for attempt in $(seq 1 90); do
+            set +e
+            output="$(ssh -o ConnectTimeout=20 yuniruyuni@ssh.yuniruyuni.net "DEPLOY_UNIT='$DEPLOY_UNIT' bash -s" << 'STATUS'
+          set -euo pipefail
+          if systemctl is-active --quiet "$DEPLOY_UNIT"; then
+            echo "running"
+            exit 10
+          fi
+
+          result="$(systemctl show "$DEPLOY_UNIT" -P Result 2>/dev/null || true)"
+          if [ "$result" = "success" ]; then
+            echo "success"
+            exit 0
+          fi
+
+          echo "failed:${result:-unknown}"
+          sudo journalctl -u "$DEPLOY_UNIT" --no-pager -n 120 || true
+          exit 1
+          STATUS
+            )"
+            status=$?
+            set -e
+
+            echo "$output"
+
+            if [ "$status" -eq 0 ]; then
+              deploy_completed=1
+              break
+            fi
+            if [ "$status" -eq 1 ]; then
+              exit 1
+            fi
+
+            echo "Deployment is still running; checking again in 20 seconds..."
+            sleep 20
+          done
+
+          if [ "$deploy_completed" -ne 1 ]; then
+            echo "Deployment did not finish within the timeout."
+            exit 1
+          fi
+
+          ssh_retry '
           echo "=== System Info ==="
           nixos-version
 
           echo "=== Service Status ==="
           sudo systemctl is-active cloudflared || echo "cloudflared: not active"
           sudo systemctl is-active podman-n8n || echo "podman-n8n: not active"
-          VERIFY
+          sudo podman ps --filter name=n8n --format "{{.Image}} {{.Status}}"
+          '
