@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - '*.tf'
+      - '.terraform.lock.hcl'
+      - 'scripts/cloudflared-boot.sh.tftpl'
   workflow_dispatch:
 
 permissions:

@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - '*.tf'
+      - '.terraform.lock.hcl'
+      - 'scripts/cloudflared-boot.sh.tftpl'
       - '.github/workflows/*-terraform*.yml'
 
 jobs:

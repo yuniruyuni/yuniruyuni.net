@@ -7,7 +7,8 @@ set -euo pipefail
 #   CLOUDFLARE_ZONE_ID
 #   CLOUDFLARE_ACCOUNT_ID
 
-cd "$(dirname "$0")/../cloudflare"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+OUTPUT_DIR="${OUTPUT_DIR:-$REPO_ROOT/.generated/cloudflare}"
 
 echo "=== Cloudflare Resource Import Script ==="
 
@@ -26,6 +27,9 @@ if [[ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]]; then
   echo "Error: CLOUDFLARE_ACCOUNT_ID is not set"
   exit 1
 fi
+
+mkdir -p "$OUTPUT_DIR"
+cd "$OUTPUT_DIR"
 
 echo ""
 echo "=== Generating DNS Records ==="
@@ -60,9 +64,11 @@ ls -la *.generated *.tf 2>/dev/null || true
 echo ""
 echo "=== Next Steps ==="
 echo "1. Review generated files (*.tf.generated)"
-echo "2. Merge generated content into dns.tf and tunnel.tf"
-echo "3. Run: terraform init"
-echo "4. Run: terraform plan (should show imports)"
+echo "2. Compare generated content with root Terraform files:"
+echo "   - $REPO_ROOT/cloudflare.tf"
+echo "   - $REPO_ROOT/cloudflare_access.tf"
+echo "3. If importing new resources, move reviewed import blocks into a temporary root *.tf file"
+echo "4. Run from repo root: terraform init && terraform plan"
 echo "5. Run: terraform apply"
 echo "6. Run: terraform plan (should show 'No changes')"
-echo "7. Delete import_*.tf and *.generated files"
+echo "7. Delete any temporary root import *.tf files; generated files remain ignored under $OUTPUT_DIR"

@@ -48,7 +48,7 @@ nixos/
 
 | Secret | 説明 |
 |--------|------|
-| `VPS_SSH_PRIVATE_KEY` | VPS への SSH 秘密鍵（ed25519） |
+| `SSH_PRIVATE_KEY` | VPS への SSH 秘密鍵（ed25519） |
 
 ## 手動デプロイ
 
@@ -131,7 +131,7 @@ reboot
 
 2. 公開鍵を VPS の `~/.ssh/authorized_keys` に追加
 
-3. 秘密鍵を GitHub Secrets `VPS_SSH_PRIVATE_KEY` に設定
+3. 秘密鍵を GitHub Secrets `SSH_PRIVATE_KEY` に設定
 
 ## トラブルシューティング
 

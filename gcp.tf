@@ -34,6 +34,14 @@ locals {
     template             = { name = "template", hostname = "template" }
   }
 
+  # Cloud Run services are invoked through the GCE tunnel gateway. The services
+  # may allow unauthenticated invocations for that internal path, but they must
+  # not expose an allUsers invoker binding to the public internet.
+  allowed_cloud_run_ingress = toset([
+    "internal",
+    "internal-and-cloud-load-balancing",
+  ])
+
   # DB-enabled apps: each gets 2 secrets (app password + admin password)
   # New app: add one entry here
   db_apps = {
@@ -328,6 +336,16 @@ resource "google_cloud_run_service_iam_member" "public_invoker" {
   service  = each.value.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+
+  lifecycle {
+    precondition {
+      condition = contains(
+        local.allowed_cloud_run_ingress,
+        try(data.google_cloud_run_service.services[each.key].metadata[0].annotations["run.googleapis.com/ingress"], "")
+      )
+      error_message = "Cloud Run service ${each.value.name} must use restricted ingress before granting allUsers invoker."
+    }
+  }
 }
 
 # =============================================================================
@@ -421,4 +439,3 @@ resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
-
