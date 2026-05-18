@@ -227,17 +227,16 @@ EOF'
 
     # Stop n8n for consistent backup
     echo "Stopping n8n..."
-    sudo systemctl stop podman-n8n || true
+    systemctl stop podman-n8n || true
     sleep 2
 
     # Create backup
     echo "Creating archive..."
-    sudo tar -czf "$BACKUP_FILE" -C "$(dirname ${n8n_data_dir})" "$(basename ${n8n_data_dir})"
-    sudo chown $(id -u):$(id -g) "$BACKUP_FILE"
+    tar -czf "$BACKUP_FILE" -C "$(dirname ${n8n_data_dir})" "$(basename ${n8n_data_dir})"
 
     # Restart n8n
     echo "Restarting n8n..."
-    sudo systemctl start podman-n8n
+    systemctl start podman-n8n
 
     # Encrypt backup before upload
     echo "Encrypting backup..."
@@ -408,7 +407,7 @@ in
     after = [ "network-online.target" "rclone-config-setup.service" ];
     wants = [ "network-online.target" ];
     requires = [ "rclone-config-setup.service" ];
-    path = [ pkgs.rclone pkgs.age pkgs.coreutils pkgs.gnugrep pkgs.gnutar pkgs.gzip ];
+    path = [ pkgs.rclone pkgs.age pkgs.coreutils pkgs.gnugrep pkgs.gnutar pkgs.gzip pkgs.systemd ];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${n8nBackup}/bin/n8n-backup";
