@@ -341,7 +341,7 @@ resource "google_cloud_run_service_iam_member" "public_invoker" {
     precondition {
       condition = contains(
         local.allowed_cloud_run_ingress,
-        try(data.google_cloud_run_service.services[each.key].metadata[0].annotations["run.googleapis.com/ingress"], "")
+        try(data.google_cloud_run_service.services[each.key].metadata[0].effective_annotations["run.googleapis.com/ingress"], "")
       )
       error_message = "Cloud Run service ${each.value.name} must use restricted ingress before granting allUsers invoker."
     }
