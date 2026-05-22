@@ -5,6 +5,12 @@ on:
     paths:
       - 'nixos/**'
       - '.github/workflows/*-nixos*.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'nixos/**'
+      - '.github/workflows/*-nixos*.yml'
 
 jobs:
   validate:
