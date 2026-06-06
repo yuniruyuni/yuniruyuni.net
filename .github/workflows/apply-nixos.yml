@@ -81,6 +81,11 @@ jobs:
 
           echo "Starting NixOS deployment at \$(date --iso-8601=seconds)"
 
+          # Avoid unrelated failed units or a timed backup colliding with the
+          # activation while PostgreSQL is being restarted.
+          systemctl reset-failed podman-n8n.service postgresql-backup.service || true
+          systemctl stop postgresql-backup.timer postgresql-backup.service || true
+
           # Backup current configuration
           cp -r /etc/nixos /etc/nixos.bak.\$(date +%Y%m%d%H%M%S)
 
