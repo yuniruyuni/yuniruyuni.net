@@ -7,6 +7,7 @@
   # Enable Incus
   virtualisation.incus = {
     enable = true;
+    package = pkgs.incus;
     ui.enable = true;  # Optional: Web UI
   };
 
