@@ -73,6 +73,14 @@ locals {
       secret_id = "hush-openai-api-key"
       service   = "hush"
     }
+    hush_session_secret = {
+      secret_id = "hush-session-secret"
+      service   = "hush"
+    }
+    hush_overlay_access_token = {
+      secret_id = "hush-overlay-access-token"
+      service   = "hush"
+    }
     hush_google_oauth_client_id = {
       secret_id = "hush-google-oauth-client-id"
       service   = "hush"

@@ -51,6 +51,9 @@
    `secretAccessor` だけを管理する。secret value は Terraform state に入れず、
    手動で version を投入する。
 
+   Browser session や overlay URL token のような app runtime secret も同じ
+   `local.runtime_secrets` に追加する。
+
 ## NixOS / PostgreSQL 側
 
 DB が必要なアプリだけ実施する。
