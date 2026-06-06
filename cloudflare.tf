@@ -35,6 +35,7 @@ locals {
     root     = { name = var.zone_name, type = "CNAME", target = "tunnel_gce", proxied = true }
     tags     = { name = "tags", type = "CNAME", target = "tunnel_gce", proxied = true }
     costume  = { name = "costume", type = "CNAME", target = "tunnel_gce", proxied = true }
+    hush     = { name = "hush", type = "CNAME", target = "tunnel_gce", proxied = true }
     lom      = { name = "lom", type = "CNAME", target = "tunnel_gce", proxied = true }
     template = { name = "template", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
