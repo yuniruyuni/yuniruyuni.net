@@ -28,6 +28,7 @@ locals {
   # hostname = "" means root domain (yuniruyuni.net)
   cloud_run_services = {
     costume              = { name = "costume", hostname = "costume" }
+    hush                 = { name = "hush", hostname = "hush" }
     lom                  = { name = "lom", hostname = "lom" }
     stream_tag_inventory = { name = "stream-tag-inventory", hostname = "tags" }
     web                  = { name = "web", hostname = "" }
@@ -45,6 +46,9 @@ locals {
   # DB-enabled apps: each gets 2 secrets (app password + admin password)
   # New app: add one entry here
   db_apps = {
+    hush = {
+      service_name = "hush"
+    }
     stream_tag_inventory = {
       service_name = "stream-tag-inventory"
     }
@@ -60,6 +64,32 @@ locals {
     "roles/artifactregistry.writer",
     "roles/secretmanager.viewer",
   ])
+
+  # Runtime secrets that are created in Secret Manager by Terraform but whose
+  # values are inserted manually. Values are intentionally not in Terraform
+  # state. Each listed Cloud Run service account receives secretAccessor.
+  runtime_secrets = {
+    hush_openai_api_key = {
+      secret_id = "hush-openai-api-key"
+      service   = "hush"
+    }
+    hush_google_oauth_client_id = {
+      secret_id = "hush-google-oauth-client-id"
+      service   = "hush"
+    }
+    hush_google_oauth_client_secret = {
+      secret_id = "hush-google-oauth-client-secret"
+      service   = "hush"
+    }
+    hush_twitch_oauth_client_id = {
+      secret_id = "hush-twitch-oauth-client-id"
+      service   = "hush"
+    }
+    hush_twitch_oauth_client_secret = {
+      secret_id = "hush-twitch-oauth-client-secret"
+      service   = "hush"
+    }
+  }
 }
 
 # =============================================================================
@@ -438,4 +468,26 @@ resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor
   secret_id = google_secret_manager_secret.cf_db_access_client_secret.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+}
+
+# =============================================================================
+# Secret Manager (app runtime secrets; values managed manually)
+# =============================================================================
+
+resource "google_secret_manager_secret" "runtime" {
+  for_each  = local.runtime_secrets
+  secret_id = each.value.secret_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_iam_member" "runtime_accessor" {
+  for_each  = local.runtime_secrets
+  secret_id = google_secret_manager_secret.runtime[each.key].id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${data.google_cloud_run_service.services[each.value.service].template[0].spec[0].service_account_name}"
 }

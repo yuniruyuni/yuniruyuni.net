@@ -38,6 +38,19 @@
    - GCE tunnel config に hostname が追加される。
    - DB アプリの場合は Secret Manager secret と IAM binding が追加される。
 
+5. アプリ固有の runtime secret が必要な場合は `gcp.tf` の `local.runtime_secrets` に追加する。
+
+   ```hcl
+   new_app_api_key = {
+     secret_id = "new-app-api-key"
+     service   = "new_app"
+   }
+   ```
+
+   Terraform は Secret Manager の secret resource と Cloud Run service account への
+   `secretAccessor` だけを管理する。secret value は Terraform state に入れず、
+   手動で version を投入する。
+
 ## NixOS / PostgreSQL 側
 
 DB が必要なアプリだけ実施する。
@@ -74,6 +87,10 @@ DB が必要なアプリだけ実施する。
 ## デプロイ順
 
 1. アプリ repository で Cloud Run サービスを作成し、restricted ingress にする。
+   Terraform は `data.google_cloud_run_service.services` で service を読むため、
+   この bootstrap service が無い状態では plan/apply できない。アプリ側に
+   `cloudrun-bootstrap.yaml` や bootstrap workflow がある場合はそれを先に実行する。
 2. この repository の Terraform PR を merge して DNS/Tunnel/Secret access を反映する。
 3. DB が必要な場合、この repository の NixOS 変更を merge して PostgreSQL database/user を反映する。
-4. アプリ repository で DB 接続設定を有効化して deploy する。
+4. Secret Manager の secret version を投入する。
+5. アプリ repository で DB 接続設定を有効化して deploy する。
