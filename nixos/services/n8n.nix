@@ -16,7 +16,7 @@
     backend = "podman";
     containers = {
       n8n = {
-        image = "n8nio/n8n:2.25.5";
+        image = "n8nio/n8n:2.25.6";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
         volumes = [
