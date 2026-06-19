@@ -29,7 +29,7 @@ jobs:
 
       - name: Install cloudflared
         run: |
-          CLOUDFLARED_VERSION="2026.6.0"
+          CLOUDFLARED_VERSION="2026.6.1"
           curl -L "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" -o /usr/local/bin/cloudflared
           chmod +x /usr/local/bin/cloudflared
           cloudflared --version
