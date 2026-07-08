@@ -81,5 +81,6 @@ variable "github_repositories" {
     "yuniruyuni.net",
     "template",
     "web",
+    "fighter-notes",
   ]
 }
