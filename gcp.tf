@@ -33,6 +33,7 @@ locals {
     stream_tag_inventory = { name = "stream-tag-inventory", hostname = "tags" }
     web                  = { name = "web", hostname = "" }
     template             = { name = "template", hostname = "template" }
+    fighter              = { name = "fighter", hostname = "fighter" }
   }
 
   # Cloud Run services are invoked through the GCE tunnel gateway. The services
@@ -54,6 +55,10 @@ locals {
     }
     template = {
       service_name = "template"
+    }
+    # DB access は将来の拡張用にプロビジョニングのみ（アプリはクエリしない）
+    fighter = {
+      service_name = "fighter"
     }
   }
 
