@@ -210,6 +210,23 @@ resource "google_logging_metric" "fighter_cleanup_failure" {
   }
 }
 
+resource "google_logging_metric" "fighter_cleanup_success" {
+  name        = "fighter_cleanup_success"
+  description = "Successful completion of the independent Fighter expiry cleanup job"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    resource.type="cloud_run_job"
+    resource.labels.job_name="fighter-cleanup"
+    textPayload:"Fighter cleanup completed:"
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
 resource "google_logging_metric" "fighter_share_quota_rejection" {
   name        = "fighter_share_quota_rejection"
   description = "Share creation rejected by a global hard quota"
@@ -392,6 +409,29 @@ resource "google_monitoring_alert_policy" "fighter_cleanup_failure" {
 
   documentation {
     content   = "Inspect the cleanup execution without logging row IDs or tokens. Restore DB/tunnel access and rerun Delete Expired Shares within 24 hours."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "fighter_cleanup_overdue" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: expiry cleanup overdue"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "No successful cleanup for 25 hours"
+    condition_absent {
+      filter   = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_cleanup_success.name}\" AND resource.type=\"cloud_run_job\""
+      duration = "90000s"
+    }
+  }
+
+  documentation {
+    content   = "Confirm the initial success metric exists, inspect the GitHub schedule and Cloud Run execution, and run Delete Expired Shares within 24 hours."
     mime_type = "text/markdown"
   }
 }
