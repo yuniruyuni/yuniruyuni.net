@@ -308,8 +308,7 @@ resource "google_iam_workload_identity_pool_provider" "fighter_builder" {
     assertion.job_workflow_ref == "${local.fighter_github.repository}/.github/workflows/build-image.yml@refs/heads/main" &&
     assertion.workflow_ref in [
       "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/cleanup.yml@refs/heads/main"
+      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main"
     ]
   EOT
 
@@ -336,7 +335,8 @@ resource "google_iam_workload_identity_pool_provider" "fighter_deployer" {
     assertion.sub == "repo:${local.fighter_github.repository}:environment:production" &&
     assertion.workflow_ref in [
       "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main"
+      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main",
+      "${local.fighter_github.repository}/.github/workflows/cleanup.yml@refs/heads/main"
     ]
   EOT
 
