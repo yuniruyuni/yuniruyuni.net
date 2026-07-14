@@ -736,9 +736,10 @@ resource "google_artifact_registry_repository_iam_member" "fighter_deployer_read
 # migrated off that identity. Project administrators remain the break-glass
 # control plane; the Fighter builder is the only workload writer for its repo.
 resource "google_iam_deny_policy" "default_compute_no_artifact_upload" {
-  parent       = urlencode("cloudresourcemanager.googleapis.com/projects/${var.gcp_project_id}")
-  name         = "default-compute-no-artifact-upload"
-  display_name = "Default Compute SA cannot upload container artifacts"
+  parent          = urlencode("cloudresourcemanager.googleapis.com/projects/${var.gcp_project_id}")
+  name            = "default-compute-no-artifact-upload"
+  display_name    = "Default Compute SA cannot upload container artifacts"
+  deletion_policy = "PREVENT"
 
   rules {
     description = "Prevent compromised runtime workloads from publishing images"
