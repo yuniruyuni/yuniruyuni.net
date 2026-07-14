@@ -91,7 +91,8 @@ resource "google_logging_project_sink" "fighter_security" {
       protoPayload.serviceName="iam.googleapis.com" OR
       protoPayload.serviceName="iamcredentials.googleapis.com" OR
       protoPayload.serviceName="sts.googleapis.com" OR
-      protoPayload.serviceName="run.googleapis.com"
+      protoPayload.serviceName="run.googleapis.com" OR
+      protoPayload.serviceName="cloudscheduler.googleapis.com"
     )
   EOT
 }
@@ -143,7 +144,8 @@ resource "google_logging_metric" "fighter_unexpected_secret_read" {
           protoPayload.resourceName:"/secrets/fighter-cleanup-cf-db-access-client-secret/versions/"
         )
       ) OR
-      protoPayload.authenticationInfo.principalEmail="fighter-notes-deployer@${var.gcp_project_id}.iam.gserviceaccount.com"
+      protoPayload.authenticationInfo.principalEmail="fighter-notes-deployer@${var.gcp_project_id}.iam.gserviceaccount.com" OR
+      protoPayload.authenticationInfo.principalEmail="fighter-cleanup-scheduler@${var.gcp_project_id}.iam.gserviceaccount.com"
     )
   EOT
 
@@ -156,7 +158,7 @@ resource "google_logging_metric" "fighter_unexpected_secret_read" {
 
 resource "google_logging_metric" "fighter_control_plane_change" {
   name        = "fighter_control_plane_change"
-  description = "IAM, WIF, audit, and protected logging configuration changes"
+  description = "IAM, WIF, audit, protected logging, and cleanup schedule configuration changes"
   project     = var.gcp_project_id
   filter      = <<-EOT
     log_id("cloudaudit.googleapis.com/activity") AND (
@@ -170,6 +172,10 @@ resource "google_logging_metric" "fighter_control_plane_change" {
           protoPayload.resourceName:"fighter-security" OR
           protoPayload.resourceName:"fighter-security-audit"
         )
+      ) OR
+      (
+        protoPayload.serviceName="cloudscheduler.googleapis.com" AND
+        protoPayload.resourceName:"fighter-cleanup-daily"
       )
     )
   EOT
@@ -206,6 +212,23 @@ resource "google_logging_metric" "fighter_cleanup_failure" {
   filter      = <<-EOT
     resource.type="cloud_run_job"
     resource.labels.job_name="fighter-cleanup"
+    severity>=ERROR
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
+resource "google_logging_metric" "fighter_cleanup_schedule_failure" {
+  name        = "fighter_cleanup_schedule_failure"
+  description = "Cloud Scheduler failed to invoke the Fighter expiry cleanup job"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    resource.type="cloud_scheduler_job"
+    resource.labels.job_id="fighter-cleanup-daily"
     severity>=ERROR
   EOT
 
@@ -414,7 +437,37 @@ resource "google_monitoring_alert_policy" "fighter_cleanup_failure" {
   }
 
   documentation {
-    content   = "Inspect the cleanup execution without logging row IDs or tokens. Restore DB/tunnel access and rerun Delete Expired Shares within 24 hours."
+    content   = "Inspect the cleanup execution without logging row IDs or tokens. Restore DB/tunnel access and execute fighter-cleanup manually within 24 hours."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "fighter_cleanup_schedule_failure" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: expiry cleanup schedule failed"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "Cloud Scheduler could not start the cleanup job"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_cleanup_schedule_failure.name}\" AND resource.type=\"cloud_scheduler_job\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+    }
+  }
+
+  documentation {
+    content   = "Inspect fighter-cleanup-daily authentication and the Cloud Run Jobs API response. Correct the schedule or IAM failure and execute fighter-cleanup manually within 24 hours."
     mime_type = "text/markdown"
   }
 }
@@ -437,7 +490,7 @@ resource "google_monitoring_alert_policy" "fighter_cleanup_overdue" {
   }
 
   documentation {
-    content   = "Confirm the initial success metric exists, inspect the GitHub schedule and Cloud Run execution, and run Delete Expired Shares within 24 hours."
+    content   = "Confirm the initial success metric exists, inspect fighter-cleanup-daily and the Cloud Run execution, and execute fighter-cleanup manually within 24 hours."
     mime_type = "text/markdown"
   }
 }
@@ -482,6 +535,72 @@ resource "google_service_account" "fighter_workload" {
   account_id   = each.value.account_id
   display_name = each.value.display_name
   description  = "Least-privilege identity for ${each.key} of Fighter Notes"
+}
+
+# Cloud Scheduler needs a Google service account only to mint the OAuth token
+# used for Jobs.run. It cannot update the Job and receives no workload secrets.
+resource "google_service_account" "fighter_cleanup_scheduler" {
+  account_id   = "fighter-cleanup-scheduler"
+  display_name = "Fighter Notes Cleanup Scheduler"
+  description  = "Invokes only the Fighter Notes expiry cleanup Cloud Run Job"
+}
+
+resource "google_project_iam_member" "fighter_cleanup_scheduler_invoker" {
+  project = var.gcp_project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.fighter_cleanup_scheduler.email}"
+
+  condition {
+    title       = "fighter_cleanup_job_invocation_only"
+    description = "Allow the scheduler to execute only the Fighter cleanup Job"
+    expression  = "resource.type == 'run.googleapis.com/Job' && resource.name.endsWith('/jobs/fighter-cleanup')"
+  }
+}
+
+# The CI apply identity must be able to attach the OAuth identity to the
+# Scheduler target. This does not grant it access to that identity's tokens.
+resource "google_service_account_iam_member" "terraform_github_fighter_cleanup_scheduler_act_as" {
+  service_account_id = google_service_account.fighter_cleanup_scheduler.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.terraform_github.email}"
+}
+
+resource "google_cloud_scheduler_job" "fighter_cleanup" {
+  project          = var.gcp_project_id
+  region           = var.gcp_region
+  name             = "fighter-cleanup-daily"
+  description      = "Run the Fighter Notes expiry cleanup Cloud Run Job every day"
+  schedule         = "23 2 * * *"
+  time_zone        = "Asia/Tokyo"
+  attempt_deadline = "30s"
+
+  retry_config {
+    retry_count          = 3
+    max_retry_duration   = "600s"
+    min_backoff_duration = "5s"
+    max_backoff_duration = "60s"
+    max_doublings        = 3
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://run.googleapis.com/v2/projects/${var.gcp_project_id}/locations/${var.gcp_region}/jobs/fighter-cleanup:run"
+    body        = base64encode("{}")
+
+    headers = {
+      "Content-Type" = "application/json"
+    }
+
+    oauth_token {
+      service_account_email = google_service_account.fighter_cleanup_scheduler.email
+    }
+  }
+
+  depends_on = [
+    google_project_service.required["cloudscheduler.googleapis.com"],
+    google_project_iam_member.fighter_cleanup_scheduler_invoker,
+    google_service_account_iam_member.terraform_github_fighter_cleanup_scheduler_act_as,
+  ]
 }
 
 resource "cloudflare_zero_trust_access_service_token" "fighter_db" {
@@ -679,8 +798,7 @@ resource "google_iam_workload_identity_pool_provider" "fighter_deployer" {
     assertion.sub == "repo:${local.fighter_github.repository}:environment:production" &&
     assertion.workflow_ref in [
       "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/cleanup.yml@refs/heads/main"
+      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main"
     ]
   EOT
 

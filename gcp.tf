@@ -21,6 +21,7 @@ locals {
     "artifactregistry.googleapis.com",
     "containeranalysis.googleapis.com",
     "containerscanning.googleapis.com",
+    "cloudscheduler.googleapis.com",
     "secretmanager.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
