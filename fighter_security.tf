@@ -769,10 +769,7 @@ resource "google_iam_workload_identity_pool_provider" "fighter_builder" {
     assertion.repository_id == "${local.fighter_github.repository_id}" &&
     assertion.ref == "refs/heads/main" &&
     assertion.job_workflow_ref == "${local.fighter_github.repository}/.github/workflows/build-image.yml@refs/heads/main" &&
-    assertion.workflow_ref in [
-      "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main"
-    ]
+    assertion.workflow_ref == "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main"
   EOT
 
   oidc {
@@ -796,10 +793,7 @@ resource "google_iam_workload_identity_pool_provider" "fighter_deployer" {
     assertion.repository_id == "${local.fighter_github.repository_id}" &&
     assertion.ref == "refs/heads/main" &&
     assertion.sub == "repo:${local.fighter_github.repository}:environment:production" &&
-    assertion.workflow_ref in [
-      "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main",
-      "${local.fighter_github.repository}/.github/workflows/migrate.yml@refs/heads/main"
-    ]
+    assertion.workflow_ref == "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main"
   EOT
 
   oidc {
