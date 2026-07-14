@@ -13,6 +13,11 @@ output "cloudflare_zone_name" {
   value       = data.cloudflare_zone.main.name
 }
 
+output "cloudflare_zone_plan" {
+  description = "Cloudflare Zone plan used to validate plan-dependent WAF limits"
+  value       = data.cloudflare_zone.main.plan.name
+}
+
 output "gce_tunnel_id" {
   description = "GCE Tunnel ID"
   value       = cloudflare_zero_trust_tunnel_cloudflared.gce.id
