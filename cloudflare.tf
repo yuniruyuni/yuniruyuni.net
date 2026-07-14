@@ -12,10 +12,6 @@ data "cloudflare_zone" "main" {
   }
 }
 
-data "cloudflare_zone_subscription" "main" {
-  zone_id = data.cloudflare_zone.main.zone_id
-}
-
 # =============================================================================
 # DNS Records (consolidated with for_each)
 # =============================================================================
