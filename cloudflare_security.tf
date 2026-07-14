@@ -56,3 +56,24 @@ resource "cloudflare_ruleset" "fighter_rate_limits" {
     },
   ]
 }
+
+resource "cloudflare_ruleset" "fighter_share_cache" {
+  zone_id     = data.cloudflare_zone.main.zone_id
+  name        = "Fighter Notes share cache policy"
+  description = "Never cache result-specific share HTML at the edge"
+  kind        = "zone"
+  phase       = "http_request_cache_settings"
+
+  rules = [
+    {
+      ref         = "fighter_share_cache_bypass"
+      description = "Bypass cache for public share result pages"
+      expression  = "(http.host eq \"fighter.${var.zone_name}\" and starts_with(http.request.uri.path, \"/s/\"))"
+      action      = "set_cache_settings"
+      action_parameters = {
+        cache = false
+      }
+      enabled = true
+    },
+  ]
+}
