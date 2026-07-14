@@ -127,8 +127,12 @@ resource "cloudflare_zero_trust_access_application" "db" {
       precedence = 1
     },
     {
-      id         = cloudflare_zero_trust_access_policy.owner.id
+      id         = cloudflare_zero_trust_access_policy.fighter_db.id
       precedence = 2
+    },
+    {
+      id         = cloudflare_zero_trust_access_policy.owner.id
+      precedence = 3
     }
   ]
 }

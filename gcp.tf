@@ -19,7 +19,11 @@ locals {
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "artifactregistry.googleapis.com",
+    "containeranalysis.googleapis.com",
+    "containerscanning.googleapis.com",
     "secretmanager.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
     "storage.googleapis.com",              # state bucket + SM usage
     "cloudresourcemanager.googleapis.com", # project-level IAM management
   ])
