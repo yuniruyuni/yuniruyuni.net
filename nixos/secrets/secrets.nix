@@ -44,4 +44,6 @@ in
   "db-password-stream_tag_inventory_app.age".publicKeys = systems ++ admins;
   "db-password-template.age".publicKeys = systems ++ admins;
   "db-password-template_app.age".publicKeys = systems ++ admins;
+  "db-password-fighter.age".publicKeys = systems ++ admins;
+  "db-password-fighter_app.age".publicKeys = systems ++ admins;
 }
