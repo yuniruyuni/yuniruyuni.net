@@ -70,7 +70,6 @@ locals {
   github_deployer_roles = toset([
     "roles/run.developer",
     "roles/iam.serviceAccountUser",
-    "roles/artifactregistry.writer",
     "roles/secretmanager.viewer",
   ])
 
@@ -147,6 +146,16 @@ resource "google_artifact_registry_repository" "apps" {
   }
 
   depends_on = [google_project_service.required]
+}
+
+# The legacy multi-app deployer remains able to publish existing applications,
+# but its writer grant must not inherit into the isolated Fighter repository.
+resource "google_artifact_registry_repository_iam_member" "github_apps_deployer_writer" {
+  project    = var.gcp_project_id
+  location   = google_artifact_registry_repository.apps.location
+  repository = google_artifact_registry_repository.apps.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.github_apps_deployer.email}"
 }
 
 # =============================================================================

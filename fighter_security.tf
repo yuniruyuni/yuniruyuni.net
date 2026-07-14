@@ -6,6 +6,10 @@
 # legacy default-service-account grants in gcp.tf. The cutover order is:
 # create -> verify -> switch workloads -> observe -> remove legacy grants.
 
+data "google_project" "current" {
+  project_id = var.gcp_project_id
+}
+
 locals {
   fighter_github = {
     owner_id      = "85034901"
@@ -27,6 +31,8 @@ locals {
       display_name = "Fighter Notes Expiry Cleanup"
     }
   }
+
+  fighter_default_compute_service_account = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
 }
 
 # -----------------------------------------------------------------------------
@@ -97,7 +103,7 @@ resource "google_logging_metric" "fighter_default_sa_secret_read" {
   filter      = <<-EOT
     log_id("cloudaudit.googleapis.com/data_access")
     protoPayload.serviceName="secretmanager.googleapis.com"
-    protoPayload.authenticationInfo.principalEmail="249322615782-compute@developer.gserviceaccount.com"
+    protoPayload.authenticationInfo.principalEmail="${local.fighter_default_compute_service_account}"
   EOT
 
   metric_descriptor {
@@ -712,6 +718,44 @@ resource "google_artifact_registry_repository_iam_member" "fighter_builder" {
   repository = google_artifact_registry_repository.fighter.name
   role       = "roles/artifactregistry.writer"
   member     = "serviceAccount:${google_service_account.fighter_builder.email}"
+}
+
+# The deployer may inspect immutable manifests and attestations, but cannot
+# upload, retag, or delete artifacts.
+resource "google_artifact_registry_repository_iam_member" "fighter_deployer_reader" {
+  project    = var.gcp_project_id
+  location   = google_artifact_registry_repository.fighter.location
+  repository = google_artifact_registry_repository.fighter.name
+  role       = "roles/artifactregistry.reader"
+  member     = "serviceAccount:${google_service_account.fighter_deployer.email}"
+}
+
+# Runtime workloads must never publish container images. The legacy default
+# Compute SA currently inherits Editor for other applications, so an explicit
+# deny closes this upload path immediately without waiting for every app to be
+# migrated off that identity. Project administrators remain the break-glass
+# control plane; the Fighter builder is the only workload writer for its repo.
+resource "google_iam_deny_policy" "default_compute_no_artifact_upload" {
+  parent       = urlencode("cloudresourcemanager.googleapis.com/projects/${var.gcp_project_id}")
+  name         = "default-compute-no-artifact-upload"
+  display_name = "Default Compute SA cannot upload container artifacts"
+
+  rules {
+    description = "Prevent compromised runtime workloads from publishing images"
+
+    deny_rule {
+      denied_principals = [
+        "principal://iam.googleapis.com/projects/-/serviceAccounts/${local.fighter_default_compute_service_account}",
+      ]
+      denied_permissions = [
+        "artifactregistry.googleapis.com/repositories.uploadArtifacts",
+      ]
+    }
+  }
+
+  depends_on = [
+    google_project_iam_member.terraform_github["roles/iam.denyAdmin"],
+  ]
 }
 
 resource "google_cloud_run_service_iam_member" "fighter_deployer" {
