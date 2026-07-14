@@ -3,28 +3,29 @@
 # =============================================================================
 # The live zone uses Cloudflare Free, which permits one IP-based rate-limiting
 # rule, a 10-second counting period, and mitigation_timeout=0 for challenge
-# actions. Protect the costliest create path at the edge; application limits,
-# database timeouts, and global hard quotas bound reads and deletes at origin.
+# actions. Combine the three DB-backed share paths into that one path-only rule;
+# application limits, database timeouts, and global hard quotas remain the
+# precise per-operation backstop at origin.
 # https://developers.cloudflare.com/waf/rate-limiting-rules/
 
 resource "cloudflare_ruleset" "fighter_rate_limits" {
   zone_id     = data.cloudflare_zone.main.zone_id
-  name        = "Fighter Notes share creation rate limit"
-  description = "Challenge burst anonymous share creation within Free-plan limits"
+  name        = "Fighter Notes share abuse rate limit"
+  description = "Challenge burst create, delete, and random-ID reads within Free-plan limits"
   kind        = "zone"
   phase       = "http_ratelimit"
 
   rules = [
     {
-      ref         = "fighter_share_create"
-      description = "Challenge burst share creation"
-      expression  = "(http.request.uri.path eq \"/api/trpc/publishedAnalysis.create\")"
+      ref         = "fighter_share_abuse"
+      description = "Challenge burst DB-backed share operations"
+      expression  = "(starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.create\") or starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.delete\") or starts_with(http.request.uri.path, \"/s/\"))"
       action      = "managed_challenge"
       enabled     = true
       ratelimit = {
         characteristics     = ["cf.colo.id", "ip.src"]
         period              = 10
-        requests_per_period = 10
+        requests_per_period = 20
         mitigation_timeout  = 0
       }
     },
