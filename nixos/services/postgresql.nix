@@ -19,11 +19,37 @@
 { config, pkgs, lib, ... }:
 
 let
+  roleSettingsSql = role: settings:
+    lib.concatStringsSep "\n" (
+      lib.optional (settings ? connectionLimit)
+        "ALTER ROLE ${role} CONNECTION LIMIT ${toString settings.connectionLimit};"
+      ++ lib.optional (settings ? statementTimeout)
+        "ALTER ROLE ${role} SET statement_timeout = '${settings.statementTimeout}';"
+      ++ lib.optional (settings ? lockTimeout)
+        "ALTER ROLE ${role} SET lock_timeout = '${settings.lockTimeout}';"
+      ++ lib.optional (settings ? idleInTransactionSessionTimeout)
+        "ALTER ROLE ${role} SET idle_in_transaction_session_timeout = '${settings.idleInTransactionSessionTimeout}';"
+    );
+
   dbApps = [
     { name = "hush";                 pgschemaManagesGrants = true; }
     { name = "stream_tag_inventory"; pgschemaManagesGrants = true; }
     { name = "template";             pgschemaManagesGrants = false; }
-    { name = "fighter";              pgschemaManagesGrants = true; cleanupUser = true; }
+    {
+      name = "fighter";
+      pgschemaManagesGrants = true;
+      ownerRoleSettings = {
+        connectionLimit = 2;
+        statementTimeout = "5min";
+        lockTimeout = "30s";
+      };
+      appRoleSettings = {
+        connectionLimit = 12;
+        statementTimeout = "15s";
+        lockTimeout = "3s";
+        idleInTransactionSessionTimeout = "15s";
+      };
+    }
   ];
 in
 {
@@ -48,9 +74,7 @@ in
     ensureUsers = lib.concatMap (app: [
       { name = app.name; ensureDBOwnership = true; } # owner/migration (DDL)
       { name = "${app.name}_app"; }                   # application (DML only)
-    ] ++ lib.optional (app.cleanupUser or false) {
-      name = "${app.name}_cleanup";
-    }) dbApps;
+    ]) dbApps;
   };
 
   # Password secrets (derived from dbApps: 2 per app)
@@ -71,14 +95,7 @@ in
         mode = "0400";
       };
     }
-  ] ++ lib.optional (app.cleanupUser or false) {
-    name = "db-password-${app.name}_cleanup";
-    value = {
-      file = ../secrets/db-password-${app.name}_cleanup.age;
-      owner = "postgres";
-      mode = "0400";
-    };
-  }) dbApps);
+  ]) dbApps);
 
   # Set passwords + DB/schema-level privileges after PostgreSQL starts.
   # app.pgschemaManagesGrants = true のアプリは per-table GRANT / ALTER DEFAULT
@@ -97,7 +114,6 @@ in
           db = app.name;
           owner = app.name;
           appUser = "${app.name}_app";
-          cleanupUser = "${app.name}_cleanup";
           # per-table / ALTER DEFAULT PRIVILEGES を pgschema 管理に委ねるか
           pgschemaManaged = app.pgschemaManagesGrants or false;
           legacyTableGrants = lib.optionalString (!pgschemaManaged) ''
@@ -106,37 +122,18 @@ in
             ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${appUser};
             ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${appUser};
           '';
-          cleanupCredentials = lib.optionalString (app.cleanupUser or false) ''
-            CLEANUP_PW=$(cat ${config.age.secrets."db-password-${app.name}_cleanup".path})
-          '';
-          cleanupRoleSql = lib.optionalString (app.cleanupUser or false) ''
-            ALTER USER ${cleanupUser} WITH PASSWORD '$CLEANUP_PW' CONNECTION LIMIT 2;
-            ALTER ROLE ${cleanupUser} SET statement_timeout = '30s';
-            ALTER ROLE ${cleanupUser} SET lock_timeout = '5s';
-            ALTER ROLE ${cleanupUser} SET idle_in_transaction_session_timeout = '30s';
-            GRANT CONNECT ON DATABASE ${db} TO ${cleanupUser};
-            GRANT USAGE ON SCHEMA public TO ${cleanupUser};
-          '';
-          fighterRoleLimits = lib.optionalString (app.name == "fighter") ''
-            ALTER ROLE ${owner} CONNECTION LIMIT 2;
-            ALTER ROLE ${owner} SET statement_timeout = '5min';
-            ALTER ROLE ${owner} SET lock_timeout = '30s';
-            ALTER ROLE ${appUser} CONNECTION LIMIT 12;
-            ALTER ROLE ${appUser} SET statement_timeout = '15s';
-            ALTER ROLE ${appUser} SET lock_timeout = '3s';
-            ALTER ROLE ${appUser} SET idle_in_transaction_session_timeout = '15s';
-          '';
+          ownerRoleSettings = roleSettingsSql owner (app.ownerRoleSettings or {});
+          appRoleSettings = roleSettingsSql appUser (app.appRoleSettings or {});
         in ''
           OWNER_PW=$(cat ${config.age.secrets."db-password-${app.name}".path})
           APP_PW=$(cat ${config.age.secrets."db-password-${app.name}_app".path})
-          ${cleanupCredentials}
           ${psql} -d ${db} <<SQL
             ALTER USER ${owner} WITH PASSWORD '$OWNER_PW';
             ALTER USER ${appUser} WITH PASSWORD '$APP_PW';
             GRANT CONNECT ON DATABASE ${db} TO ${appUser};
             GRANT USAGE ON SCHEMA public TO ${appUser};
-            ${cleanupRoleSql}
-            ${fighterRoleLimits}
+            ${ownerRoleSettings}
+            ${appRoleSettings}
             ${legacyTableGrants}
           SQL
         '') dbApps

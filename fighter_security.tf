@@ -138,7 +138,7 @@ resource "google_logging_metric" "fighter_unexpected_secret_read" {
       ) OR
       (
         protoPayload.authenticationInfo.principalEmail="fighter-cleanup@${var.gcp_project_id}.iam.gserviceaccount.com" AND NOT (
-          protoPayload.resourceName:"/secrets/fighter-db-cleanup-password/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-db-app-password/versions/" OR
           protoPayload.resourceName:"/secrets/fighter-cleanup-cf-db-access-client-id/versions/" OR
           protoPayload.resourceName:"/secrets/fighter-cleanup-cf-db-access-client-secret/versions/"
         )
@@ -561,8 +561,9 @@ resource "google_secret_manager_secret_iam_member" "fighter_cf_db_client_secret"
   member    = "serviceAccount:${google_service_account.fighter_workload[each.key].email}"
 }
 
-# Runtime gets only the DML credential. Migration gets only the owner/DDL
-# credential. Cleanup receives a separate DB credential in the cleanup phase.
+# Runtime and cleanup share the DML credential. Migration alone receives the
+# owner/DDL credential. GCP service accounts and Cloudflare tokens remain
+# isolated per workload.
 resource "google_secret_manager_secret_iam_member" "fighter_runtime_db" {
   secret_id = google_secret_manager_secret.db_app_password["fighter"].id
   role      = "roles/secretmanager.secretAccessor"
@@ -575,28 +576,8 @@ resource "google_secret_manager_secret_iam_member" "fighter_migration_db" {
   member    = "serviceAccount:${google_service_account.fighter_workload["migration"].email}"
 }
 
-# The password value is inserted manually and mirrored only as an age-encrypted
-# NixOS secret. The import block adopts the pre-created Secret without exposing
-# its version payload to Terraform state.
-resource "google_secret_manager_secret" "fighter_cleanup_db" {
-  secret_id = "fighter-db-cleanup-password"
-  labels = {
-    app     = "fighter"
-    purpose = "cleanup"
-  }
-  replication {
-    auto {}
-  }
-  depends_on = [google_project_service.required]
-}
-
-import {
-  to = google_secret_manager_secret.fighter_cleanup_db
-  id = "projects/yuniruyuni-net/secrets/fighter-db-cleanup-password"
-}
-
 resource "google_secret_manager_secret_iam_member" "fighter_cleanup_db" {
-  secret_id = google_secret_manager_secret.fighter_cleanup_db.id
+  secret_id = google_secret_manager_secret.db_app_password["fighter"].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.fighter_workload["cleanup"].email}"
 }
