@@ -491,6 +491,12 @@ resource "cloudflare_zero_trust_access_service_token" "fighter_db" {
   name       = "Fighter Notes ${title(each.key)} DB Access"
 }
 
+# Cloudflare returns each client_secret only at creation, so its resource state
+# is credential-sensitive. The protected Terraform backend and manually
+# approved plan Environment are part of this trust boundary. Secret Manager
+# versions below use write-only arguments to avoid duplicating token material
+# in their own resource state.
+
 resource "cloudflare_zero_trust_access_policy" "fighter_db" {
   account_id = var.cloudflare_account_id
   name       = "Fighter Notes DB Service Tokens"
@@ -516,8 +522,9 @@ resource "google_secret_manager_secret" "fighter_cf_db_client_id" {
 resource "google_secret_manager_secret_version" "fighter_cf_db_client_id" {
   for_each = local.fighter_workloads
 
-  secret      = google_secret_manager_secret.fighter_cf_db_client_id[each.key].id
-  secret_data = cloudflare_zero_trust_access_service_token.fighter_db[each.key].client_id
+  secret                 = google_secret_manager_secret.fighter_cf_db_client_id[each.key].id
+  secret_data_wo         = cloudflare_zero_trust_access_service_token.fighter_db[each.key].client_id
+  secret_data_wo_version = 1
 }
 
 resource "google_secret_manager_secret" "fighter_cf_db_client_secret" {
@@ -533,8 +540,9 @@ resource "google_secret_manager_secret" "fighter_cf_db_client_secret" {
 resource "google_secret_manager_secret_version" "fighter_cf_db_client_secret" {
   for_each = local.fighter_workloads
 
-  secret      = google_secret_manager_secret.fighter_cf_db_client_secret[each.key].id
-  secret_data = cloudflare_zero_trust_access_service_token.fighter_db[each.key].client_secret
+  secret                 = google_secret_manager_secret.fighter_cf_db_client_secret[each.key].id
+  secret_data_wo         = cloudflare_zero_trust_access_service_token.fighter_db[each.key].client_secret
+  secret_data_wo_version = 1
 }
 
 resource "google_secret_manager_secret_iam_member" "fighter_cf_db_client_id" {
