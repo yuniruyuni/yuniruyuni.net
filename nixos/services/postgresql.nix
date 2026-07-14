@@ -19,37 +19,11 @@
 { config, pkgs, lib, ... }:
 
 let
-  roleSettingsSql = role: settings:
-    lib.concatStringsSep "\n" (
-      lib.optional (settings ? connectionLimit)
-        "ALTER ROLE ${role} CONNECTION LIMIT ${toString settings.connectionLimit};"
-      ++ lib.optional (settings ? statementTimeout)
-        "ALTER ROLE ${role} SET statement_timeout = '${settings.statementTimeout}';"
-      ++ lib.optional (settings ? lockTimeout)
-        "ALTER ROLE ${role} SET lock_timeout = '${settings.lockTimeout}';"
-      ++ lib.optional (settings ? idleInTransactionSessionTimeout)
-        "ALTER ROLE ${role} SET idle_in_transaction_session_timeout = '${settings.idleInTransactionSessionTimeout}';"
-    );
-
   dbApps = [
     { name = "hush";                 pgschemaManagesGrants = true; }
     { name = "stream_tag_inventory"; pgschemaManagesGrants = true; }
     { name = "template";             pgschemaManagesGrants = false; }
-    {
-      name = "fighter";
-      pgschemaManagesGrants = true;
-      ownerRoleSettings = {
-        connectionLimit = 2;
-        statementTimeout = "5min";
-        lockTimeout = "30s";
-      };
-      appRoleSettings = {
-        connectionLimit = 12;
-        statementTimeout = "15s";
-        lockTimeout = "3s";
-        idleInTransactionSessionTimeout = "15s";
-      };
-    }
+    { name = "fighter";              pgschemaManagesGrants = true; }
   ];
 in
 {
@@ -122,8 +96,6 @@ in
             ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${appUser};
             ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${appUser};
           '';
-          ownerRoleSettings = roleSettingsSql owner (app.ownerRoleSettings or {});
-          appRoleSettings = roleSettingsSql appUser (app.appRoleSettings or {});
         in ''
           OWNER_PW=$(cat ${config.age.secrets."db-password-${app.name}".path})
           APP_PW=$(cat ${config.age.secrets."db-password-${app.name}_app".path})
@@ -132,8 +104,6 @@ in
             ALTER USER ${appUser} WITH PASSWORD '$APP_PW';
             GRANT CONNECT ON DATABASE ${db} TO ${appUser};
             GRANT USAGE ON SCHEMA public TO ${appUser};
-            ${ownerRoleSettings}
-            ${appRoleSettings}
             ${legacyTableGrants}
           SQL
         '') dbApps
