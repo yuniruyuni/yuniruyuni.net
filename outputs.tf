@@ -15,7 +15,7 @@ output "cloudflare_zone_name" {
 
 output "cloudflare_zone_plan" {
   description = "Cloudflare Zone plan used to validate plan-dependent WAF limits"
-  value       = data.cloudflare_zone.main.plan.name
+  value       = data.cloudflare_zone_subscription.main.rate_plan.id
 }
 
 output "gce_tunnel_id" {
