@@ -46,6 +46,25 @@ resource "google_project_iam_audit_config" "secret_manager" {
   }
 }
 
+resource "google_project_iam_audit_config" "fighter_identity_services" {
+  for_each = toset([
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
+  ])
+
+  project = var.gcp_project_id
+  service = each.value
+
+  audit_log_config {
+    log_type = "DATA_READ"
+  }
+
+  audit_log_config {
+    log_type = "ADMIN_READ"
+  }
+}
+
 resource "google_logging_project_bucket_config" "fighter_security" {
   project        = var.gcp_project_id
   location       = "global"
@@ -88,11 +107,151 @@ resource "google_logging_metric" "fighter_default_sa_secret_read" {
   }
 }
 
+resource "google_logging_metric" "fighter_unexpected_secret_read" {
+  name        = "fighter_unexpected_secret_read"
+  description = "Secret reads by Fighter identities outside their per-workload allowlist"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    log_id("cloudaudit.googleapis.com/data_access")
+    protoPayload.serviceName="secretmanager.googleapis.com"
+    protoPayload.methodName="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"
+    (
+      (
+        protoPayload.authenticationInfo.principalEmail="fighter-runtime@${var.gcp_project_id}.iam.gserviceaccount.com" AND NOT (
+          protoPayload.resourceName:"/secrets/fighter-db-app-password/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-runtime-cf-db-access-client-id/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-runtime-cf-db-access-client-secret/versions/"
+        )
+      ) OR
+      (
+        protoPayload.authenticationInfo.principalEmail="fighter-migration@${var.gcp_project_id}.iam.gserviceaccount.com" AND NOT (
+          protoPayload.resourceName:"/secrets/fighter-db-password/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-migration-cf-db-access-client-id/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-migration-cf-db-access-client-secret/versions/"
+        )
+      ) OR
+      (
+        protoPayload.authenticationInfo.principalEmail="fighter-cleanup@${var.gcp_project_id}.iam.gserviceaccount.com" AND NOT (
+          protoPayload.resourceName:"/secrets/fighter-db-cleanup-password/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-cleanup-cf-db-access-client-id/versions/" OR
+          protoPayload.resourceName:"/secrets/fighter-cleanup-cf-db-access-client-secret/versions/"
+        )
+      ) OR
+      protoPayload.authenticationInfo.principalEmail="fighter-notes-deployer@${var.gcp_project_id}.iam.gserviceaccount.com"
+    )
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
+resource "google_logging_metric" "fighter_control_plane_change" {
+  name        = "fighter_control_plane_change"
+  description = "IAM, WIF, audit, and protected logging configuration changes"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    log_id("cloudaudit.googleapis.com/activity") AND (
+      protoPayload.serviceName="iam.googleapis.com" OR
+      (
+        protoPayload.serviceName="cloudresourcemanager.googleapis.com" AND
+        protoPayload.methodName:"SetIamPolicy"
+      ) OR
+      (
+        protoPayload.serviceName="logging.googleapis.com" AND (
+          protoPayload.resourceName:"fighter-security" OR
+          protoPayload.resourceName:"fighter-security-audit"
+        )
+      )
+    )
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
+resource "google_logging_metric" "fighter_migration_execution" {
+  name        = "fighter_migration_execution"
+  description = "Every Fighter migration execution; verify it matches an approved window"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    log_id("cloudaudit.googleapis.com/system_event")
+    resource.type="cloud_run_job"
+    resource.labels.job_name="fighter-migration"
+    protoPayload.methodName="/Jobs.RunJob"
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
+resource "google_logging_metric" "fighter_cleanup_failure" {
+  name        = "fighter_cleanup_failure"
+  description = "Error emitted by the independent Fighter expiry cleanup job"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    resource.type="cloud_run_job"
+    resource.labels.job_name="fighter-cleanup"
+    severity>=ERROR
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
+resource "google_logging_metric" "fighter_share_quota_rejection" {
+  name        = "fighter_share_quota_rejection"
+  description = "Share creation rejected by a global hard quota"
+  project     = var.gcp_project_id
+  filter      = <<-EOT
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="fighter"
+    textPayload:"Published analysis create quota reached"
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    unit        = "1"
+  }
+}
+
+resource "google_monitoring_notification_channel" "fighter_security_email" {
+  project      = var.gcp_project_id
+  display_name = "Fighter security alerts"
+  type         = "email"
+
+  labels = {
+    email_address = var.owner_email
+  }
+
+  user_labels = {
+    app     = "fighter"
+    purpose = "security"
+  }
+
+  depends_on = [google_project_service.required]
+}
+
 resource "google_monitoring_alert_policy" "fighter_default_sa_secret_read" {
   project      = var.gcp_project_id
   display_name = "Fighter: default SA accessed Secret Manager"
   combiner     = "OR"
   enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
 
   conditions {
     display_name = "Any legacy default-SA secret read"
@@ -115,6 +274,156 @@ resource "google_monitoring_alert_policy" "fighter_default_sa_secret_read" {
   }
 
   depends_on = [google_project_service.required]
+}
+
+resource "google_monitoring_alert_policy" "fighter_unexpected_secret_read" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: unexpected Secret Manager access"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "Any allowlist violation or deployer secret read"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_unexpected_secret_read.name}\" AND resource.type=\"audited_resource\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+    }
+  }
+
+  documentation {
+    content   = "Treat this as a credential-boundary incident. Identify principal and secret resource in Data Access logs; never export secret payloads."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "fighter_control_plane_change" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: IAM, WIF, or audit configuration changed"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "Any audited control-plane change"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_control_plane_change.name}\" AND resource.type=\"audited_resource\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+    }
+  }
+
+  documentation {
+    content   = "Confirm the actor and corresponding reviewed infrastructure change. Revert unauthorized IAM, WIF, audit, or log-routing changes."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "fighter_migration_execution" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: production migration executed"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "Any migration job execution"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_migration_execution.name}\" AND resource.type=\"cloud_run_job\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+    }
+  }
+
+  documentation {
+    content   = "Match the execution timestamp and digest to an approved Run Production Migration workflow and backup confirmation."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "fighter_cleanup_failure" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: expiry cleanup failed"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "Any cleanup job error"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_cleanup_failure.name}\" AND resource.type=\"cloud_run_job\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+    }
+  }
+
+  documentation {
+    content   = "Inspect the cleanup execution without logging row IDs or tokens. Restore DB/tunnel access and rerun Delete Expired Shares within 24 hours."
+    mime_type = "text/markdown"
+  }
+}
+
+resource "google_monitoring_alert_policy" "fighter_share_quota_rejection" {
+  project      = var.gcp_project_id
+  display_name = "Fighter: anonymous share hard quota reached"
+  combiner     = "OR"
+  enabled      = true
+  notification_channels = [
+    google_monitoring_notification_channel.fighter_security_email.name,
+  ]
+
+  conditions {
+    display_name = "Any global quota rejection"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_share_quota_rejection.name}\" AND resource.type=\"cloud_run_revision\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+      duration        = "0s"
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_SUM"
+      }
+    }
+  }
+
+  documentation {
+    content   = "Creation is failing closed. Check daily events, active rows, relation bytes, cleanup lag, and Cloudflare traffic before changing a limit."
+    mime_type = "text/markdown"
+  }
 }
 
 # -----------------------------------------------------------------------------
