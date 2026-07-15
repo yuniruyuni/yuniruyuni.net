@@ -3,7 +3,7 @@
 # =============================================================================
 # The live zone uses Cloudflare Free, which permits one IP-based rate-limiting
 # rule, a 10-second counting period, and mitigation_timeout=0 for challenge
-# actions. Combine the three DB-backed share paths into that one path-only rule;
+# actions. Combine the two DB-backed share paths into that one path-only rule;
 # application limits, database timeouts, and global hard quotas remain the
 # precise per-operation backstop at origin.
 # https://developers.cloudflare.com/waf/rate-limiting-rules/
@@ -11,7 +11,7 @@
 resource "cloudflare_ruleset" "fighter_rate_limits" {
   zone_id     = data.cloudflare_zone.main.zone_id
   name        = "Fighter Notes share abuse rate limit"
-  description = "Challenge burst create, delete, and random-ID reads within Free-plan limits"
+  description = "Challenge burst create and random-ID reads within Free-plan limits"
   kind        = "zone"
   phase       = "http_ratelimit"
 
@@ -19,7 +19,7 @@ resource "cloudflare_ruleset" "fighter_rate_limits" {
     {
       ref         = "fighter_share_abuse"
       description = "Challenge burst DB-backed share operations"
-      expression  = "(starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.create\") or starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.delete\") or starts_with(http.request.uri.path, \"/s/\"))"
+      expression  = "(starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.create\") or starts_with(http.request.uri.path, \"/s/\"))"
       action      = "managed_challenge"
       enabled     = true
       ratelimit = {
@@ -35,18 +35,36 @@ resource "cloudflare_ruleset" "fighter_rate_limits" {
 resource "cloudflare_ruleset" "fighter_share_cache" {
   zone_id     = data.cloudflare_zone.main.zone_id
   name        = "Fighter Notes share cache policy"
-  description = "Never cache result-specific share HTML at the edge"
+  description = "Cache immutable share HTML according to origin lifecycle headers"
   kind        = "zone"
   phase       = "http_request_cache_settings"
 
   rules = [
     {
-      ref         = "fighter_share_cache_bypass"
-      description = "Bypass cache for public share result pages"
+      ref         = "fighter_share_cache_eligible"
+      description = "Cache immutable public shares while respecting origin no-store"
       expression  = "(http.host eq \"fighter.${var.zone_name}\" and starts_with(http.request.uri.path, \"/s/\"))"
       action      = "set_cache_settings"
       action_parameters = {
-        cache = false
+        cache = true
+        edge_ttl = {
+          mode = "respect_origin"
+        }
+        browser_ttl = {
+          mode = "respect_origin"
+        }
+        cache_key = {
+          custom_key = {
+            query_string = {
+              exclude = {
+                all = true
+              }
+            }
+          }
+        }
+        serve_stale = {
+          disable_stale_while_updating = false
+        }
       }
       enabled = true
     },
