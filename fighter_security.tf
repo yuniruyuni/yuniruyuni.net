@@ -752,6 +752,12 @@ resource "google_artifact_registry_repository" "fighter" {
   description   = "Immutable production images for Fighter Notes"
   format        = "DOCKER"
 
+  # Automatic scans are billed per image digest, so keep them disabled for this
+  # personal project while the project-wide API remains Terraform-managed.
+  vulnerability_scanning_config {
+    enablement_config = "DISABLED"
+  }
+
   docker_config {
     immutable_tags = true
   }
