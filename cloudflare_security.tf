@@ -3,7 +3,7 @@
 # =============================================================================
 # The live zone uses Cloudflare Free, which permits one IP-based rate-limiting
 # rule, a 10-second counting period, and a 10-second block period. Combine the
-# two DB-backed share paths into that one path-only rule;
+# three DB-backed share operations into that one path-only rule;
 # application limits, database timeouts, and global hard quotas remain the
 # precise per-operation backstop at origin.
 # https://developers.cloudflare.com/waf/rate-limiting-rules/
@@ -11,7 +11,7 @@
 resource "cloudflare_ruleset" "fighter_rate_limits" {
   zone_id     = data.cloudflare_zone.main.zone_id
   name        = "Fighter Notes share abuse rate limit"
-  description = "Block burst create and random-ID reads within Free-plan limits"
+  description = "Block burst create, delete, and random-ID reads within Free-plan limits"
   kind        = "zone"
   phase       = "http_ratelimit"
 
@@ -19,7 +19,7 @@ resource "cloudflare_ruleset" "fighter_rate_limits" {
     {
       ref         = "fighter_share_abuse"
       description = "Block burst DB-backed share operations"
-      expression  = "(starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.create\") or starts_with(http.request.uri.path, \"/s/\"))"
+      expression  = "(starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.create\") or starts_with(http.request.uri.path, \"/api/trpc/publishedAnalysis.delete\") or starts_with(http.request.uri.path, \"/s/\"))"
       action      = "block"
       enabled     = true
       ratelimit = {
@@ -66,7 +66,7 @@ resource "cloudflare_ruleset" "fighter_share_cache" {
     },
     {
       ref         = "fighter_share_cache_eligible"
-      description = "Cache immutable public shares while respecting origin no-store"
+      description = "Cache short-lived public share responses while respecting origin policy"
       expression  = "(http.host eq \"fighter.${var.zone_name}\" and starts_with(http.request.uri.path, \"/s/\"))"
       action      = "set_cache_settings"
       action_parameters = {
@@ -87,7 +87,7 @@ resource "cloudflare_ruleset" "fighter_share_cache" {
           }
         }
         serve_stale = {
-          disable_stale_while_updating = false
+          disable_stale_while_updating = true
         }
       }
       enabled = true
