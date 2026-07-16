@@ -55,7 +55,6 @@ resource "google_project_iam_audit_config" "secret_manager" {
 resource "google_project_iam_audit_config" "fighter_identity_services" {
   for_each = toset([
     "iam.googleapis.com",
-    "iamcredentials.googleapis.com",
     "sts.googleapis.com",
   ])
 
@@ -78,7 +77,10 @@ resource "google_logging_project_bucket_config" "fighter_security" {
   retention_days = 90
   description    = "Protected audit trail for Fighter Notes identity and secret access"
 
-  depends_on = [google_project_service.required]
+  depends_on = [
+    google_project_service.required,
+    google_project_iam_member.terraform_github["roles/logging.configWriter"],
+  ]
 }
 
 resource "google_logging_project_sink" "fighter_security" {
@@ -483,9 +485,11 @@ resource "google_monitoring_alert_policy" "fighter_cleanup_overdue" {
 
   conditions {
     display_name = "No successful cleanup for 25 hours"
-    condition_absent {
-      filter   = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.fighter_cleanup_success.name}\" AND resource.type=\"cloud_run_job\""
-      duration = "90000s"
+    condition_prometheus_query_language {
+      query                     = "absent_over_time(logging_googleapis_com:user_fighter_cleanup_success{monitored_resource=\"cloud_run_job\"}[25h])"
+      duration                  = "0s"
+      evaluation_interval       = "300s"
+      disable_metric_validation = true
     }
   }
 
@@ -831,34 +835,13 @@ resource "google_artifact_registry_repository_iam_member" "fighter_deployer_read
   member     = "serviceAccount:${google_service_account.fighter_deployer.email}"
 }
 
-# Runtime workloads must never publish container images. The legacy default
-# Compute SA currently inherits Editor for other applications, so an explicit
-# deny closes this upload path immediately without waiting for every app to be
-# migrated off that identity. Project administrators remain the break-glass
-# control plane; the Fighter builder is the only workload writer for its repo.
-resource "google_iam_deny_policy" "default_compute_no_artifact_upload" {
-  parent          = urlencode("cloudresourcemanager.googleapis.com/projects/${var.gcp_project_id}")
-  name            = "default-compute-no-artifact-upload"
-  display_name    = "Default Compute SA cannot upload container artifacts"
-  deletion_policy = "PREVENT"
-
-  rules {
-    description = "Prevent compromised runtime workloads from publishing images"
-
-    deny_rule {
-      denied_principals = [
-        "principal://iam.googleapis.com/projects/-/serviceAccounts/${local.fighter_default_compute_service_account}",
-      ]
-      denied_permissions = [
-        "artifactregistry.googleapis.com/repositories.uploadArtifacts",
-      ]
-    }
-  }
-
-  depends_on = [
-    google_project_iam_member.terraform_github["roles/iam.denyAdmin"],
-  ]
-}
+# The project currently has no organization parent. Google only allows the
+# Deny Admin and Deny Reviewer roles to be granted at organization level, so a
+# project-level deny policy cannot be bootstrapped here. Until the remaining
+# workloads migrate away from the legacy default Compute SA and its Editor role
+# is removed, that identity can still upload to repositories where Editor is
+# sufficient. Fighter mitigates this residual risk with a dedicated immutable
+# repository, unique release tags, and separate builder/deployer identities.
 
 resource "google_cloud_run_service_iam_member" "fighter_deployer" {
   project  = var.gcp_project_id
