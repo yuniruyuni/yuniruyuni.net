@@ -433,16 +433,24 @@ resource "google_secret_manager_secret" "db_app_password" {
   depends_on = [google_project_service.required]
 }
 
-# Grant Cloud Run SA access to both secrets
+# Grant the current Cloud Run SA access to both secrets for applications that
+# still use the legacy shared identity. Fighter has per-workload grants in
+# fighter_security.tf so its runtime cannot read the owner/migration password.
 resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
-  for_each  = local.db_apps
+  for_each = {
+    for key, app in local.db_apps : key => app
+    if key != "fighter"
+  }
   secret_id = google_secret_manager_secret.db_password[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
 }
 
 resource "google_secret_manager_secret_iam_member" "db_app_password_accessor" {
-  for_each  = local.db_apps
+  for_each = {
+    for key, app in local.db_apps : key => app
+    if key != "fighter"
+  }
   secret_id = google_secret_manager_secret.db_app_password[each.key].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
@@ -482,19 +490,21 @@ resource "google_secret_manager_secret_version" "cf_db_access_client_secret" {
   secret_data = cloudflare_zero_trust_access_service_token.cloud_run_db.client_secret
 }
 
-# Grant all DB-enabled Cloud Run SAs access to the service token secrets
+# The shared DB tunnel token belongs to workloads that still run as the legacy
+# default Compute SA. Dedicated workloads such as Fighter receive unique tokens
+# in their own boundary instead of inheriting this shared credential.
 resource "google_secret_manager_secret_iam_member" "cf_db_client_id_accessor" {
   for_each  = local.db_apps
   secret_id = google_secret_manager_secret.cf_db_access_client_id.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+  member    = "serviceAccount:${local.legacy_default_compute_service_account}"
 }
 
 resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor" {
   for_each  = local.db_apps
   secret_id = google_secret_manager_secret.cf_db_access_client_secret.id
   role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
+  member    = "serviceAccount:${local.legacy_default_compute_service_account}"
 }
 
 # =============================================================================

@@ -32,7 +32,7 @@ locals {
     }
   }
 
-  fighter_default_compute_service_account = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
+  legacy_default_compute_service_account = "${data.google_project.current.number}-compute@developer.gserviceaccount.com"
 }
 
 # -----------------------------------------------------------------------------
@@ -106,7 +106,7 @@ resource "google_logging_metric" "fighter_default_sa_secret_read" {
   filter      = <<-EOT
     log_id("cloudaudit.googleapis.com/data_access")
     protoPayload.serviceName="secretmanager.googleapis.com"
-    protoPayload.authenticationInfo.principalEmail="${local.fighter_default_compute_service_account}"
+    protoPayload.authenticationInfo.principalEmail="${local.legacy_default_compute_service_account}"
   EOT
 
   metric_descriptor {
@@ -573,7 +573,7 @@ resource "google_cloud_run_v2_job" "fighter_cleanup_bootstrap" {
   }
 
   lifecycle {
-    ignore_changes = [template]
+    ignore_changes = [template, client, client_version]
   }
 
   depends_on = [
