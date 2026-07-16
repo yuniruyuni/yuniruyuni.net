@@ -129,6 +129,12 @@ resource "google_artifact_registry_repository" "apps" {
   description   = "Container images for Cloud Run apps"
   format        = "DOCKER"
 
+  # Automatic scans are billed per image digest, so keep them disabled for this
+  # personal project while the project-wide API remains Terraform-managed.
+  vulnerability_scanning_config {
+    enablement_config = "DISABLED"
+  }
+
   # Keep only the 3 most recent versions per image to stay within 500MB free tier
   cleanup_policies {
     id     = "keep-recent-versions"
