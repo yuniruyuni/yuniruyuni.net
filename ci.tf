@@ -60,9 +60,9 @@ resource "google_service_account" "terraform_github" {
 resource "google_project_iam_member" "terraform_github" {
   for_each = toset([
     "roles/editor",
-    "roles/iam.denyAdmin",
     "roles/iam.securityAdmin",
     "roles/iam.workloadIdentityPoolAdmin",
+    "roles/logging.configWriter",
   ])
   project = var.gcp_project_id
   role    = each.value
@@ -91,7 +91,6 @@ resource "google_service_account" "terraform_github_plan" {
 resource "google_project_iam_member" "terraform_github_plan" {
   for_each = toset([
     "roles/viewer",
-    "roles/iam.denyReviewer",
     "roles/iam.securityReviewer",
   ])
   project = var.gcp_project_id
