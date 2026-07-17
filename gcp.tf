@@ -20,7 +20,6 @@ locals {
     "iamcredentials.googleapis.com",
     "artifactregistry.googleapis.com",
     "containeranalysis.googleapis.com",
-    "containerscanning.googleapis.com",
     "cloudscheduler.googleapis.com",
     "secretmanager.googleapis.com",
     "logging.googleapis.com",
@@ -116,7 +115,7 @@ locals {
 resource "google_project_service" "required" {
   for_each           = local.required_apis
   service            = each.value
-  disable_on_destroy = each.value == "containerscanning.googleapis.com"
+  disable_on_destroy = false
 }
 
 # =============================================================================
@@ -130,7 +129,7 @@ resource "google_artifact_registry_repository" "apps" {
   format        = "DOCKER"
 
   # Automatic scans are billed per image digest, so keep them disabled for this
-  # personal project while the project-wide API remains Terraform-managed.
+  # personal project even if scanning is enabled outside Terraform.
   vulnerability_scanning_config {
     enablement_config = "DISABLED"
   }

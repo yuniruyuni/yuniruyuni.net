@@ -323,7 +323,7 @@ resource "google_artifact_registry_repository" "fighter" {
   format        = "DOCKER"
 
   # Automatic scans are billed per image digest, so keep them disabled for this
-  # personal project while the project-wide API remains Terraform-managed.
+  # personal project even if scanning is enabled outside Terraform.
   vulnerability_scanning_config {
     enablement_config = "DISABLED"
   }
