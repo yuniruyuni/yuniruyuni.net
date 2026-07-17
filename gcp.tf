@@ -116,7 +116,7 @@ locals {
 resource "google_project_service" "required" {
   for_each           = local.required_apis
   service            = each.value
-  disable_on_destroy = false
+  disable_on_destroy = each.value == "containerscanning.googleapis.com"
 }
 
 # =============================================================================
