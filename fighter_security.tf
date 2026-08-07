@@ -11,10 +11,14 @@ data "google_project" "current" {
 }
 
 locals {
+  # GitHub の OIDC claim と完全一致させる必要がある。repository は claim と
+  # 同じ大文字小文字表記、repository_id は GitHub API が返す数値 id を使う。
+  # どちらかがずれると token exchange が attribute condition で拒否され、
+  # deploy が認証段階で失敗する。
   fighter_github = {
     owner_id      = "85034901"
-    repository_id = "1292768512"
-    repository    = "yuniruyuni/fighter-notes"
+    repository_id = "1313852776"
+    repository    = "yuniruyuni/FighterNotes"
   }
 
   fighter_workloads = {
