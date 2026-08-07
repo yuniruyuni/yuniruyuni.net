@@ -11,15 +11,34 @@ data "google_project" "current" {
 }
 
 locals {
-  # GitHub の OIDC claim と完全一致させる必要がある。repository は claim と
-  # 同じ大文字小文字表記、repository_id は GitHub API が返す数値 id を使う。
-  # どちらかがずれると token exchange が attribute condition で拒否され、
-  # deploy が認証段階で失敗する。
+  # GitHub の OIDC claim と完全一致させる必要がある。owner / repository は
+  # claim と同じ大文字小文字表記、*_id は GitHub API が返す数値 id を使う。
+  # 1つでもずれると token exchange が attribute condition で拒否され、deploy が
+  # 認証段階で失敗する。リポジトリをリネームしたら、ここを更新すること。
+  #
+  #   gh api repos/<owner>/<repo> --jq '{full_name, id, owner_id: .owner.id}'
   fighter_github = {
-    owner_id      = "85034901"
-    repository_id = "1313852776"
-    repository    = "yuniruyuni/FighterNotes"
+    owner           = "yuniruyuni"
+    owner_id        = "85034901"
+    repository_name = "FighterNotes"
+    repository_id   = "1313852776"
   }
+
+  # workflow_ref / job_workflow_ref が使う通常の <owner>/<repo> 表記。
+  fighter_repository = "${local.fighter_github.owner}/${local.fighter_github.repository_name}"
+
+  # sub だけは表記が異なる。このリポジトリは OIDC の immutable subject prefix を
+  # 有効にしているため、sub は <owner>@<owner_id>/<repo>@<repo_id> を含む
+  # 実測値（2026-08-07 の token exchange 監査ログで確認）:
+  #   repo:yuniruyuni@85034901/FighterNotes@1313852776:environment:production
+  # 設定を確認する場合:
+  #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
+  fighter_subject_prefix = join("", [
+    "repo:",
+    "${local.fighter_github.owner}@${local.fighter_github.owner_id}",
+    "/",
+    "${local.fighter_github.repository_name}@${local.fighter_github.repository_id}",
+  ])
 
   fighter_workloads = {
     runtime = {
@@ -389,8 +408,8 @@ resource "google_iam_workload_identity_pool_provider" "fighter_builder" {
     assertion.repository_owner_id == "${local.fighter_github.owner_id}" &&
     assertion.repository_id == "${local.fighter_github.repository_id}" &&
     assertion.ref == "refs/heads/main" &&
-    assertion.job_workflow_ref == "${local.fighter_github.repository}/.github/workflows/build-image.yml@refs/heads/main" &&
-    assertion.workflow_ref == "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main"
+    assertion.job_workflow_ref == "${local.fighter_repository}/.github/workflows/build-image.yml@refs/heads/main" &&
+    assertion.workflow_ref == "${local.fighter_repository}/.github/workflows/deploy.yml@refs/heads/main"
   EOT
 
   oidc {
@@ -398,6 +417,9 @@ resource "google_iam_workload_identity_pool_provider" "fighter_builder" {
   }
 }
 
+# release credential は production environment の job だけへ渡す。
+# environment claim ではなく sub 全体を固定することで、subject の形が変わった
+# 場合も検知できる（黙って通さない）。形が変わったら locals を更新すること。
 resource "google_iam_workload_identity_pool_provider" "fighter_deployer" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.fighter_github.workload_identity_pool_id
   workload_identity_pool_provider_id = "deployer"
@@ -413,8 +435,8 @@ resource "google_iam_workload_identity_pool_provider" "fighter_deployer" {
     assertion.repository_owner_id == "${local.fighter_github.owner_id}" &&
     assertion.repository_id == "${local.fighter_github.repository_id}" &&
     assertion.ref == "refs/heads/main" &&
-    assertion.sub == "repo:${local.fighter_github.repository}:environment:production" &&
-    assertion.workflow_ref == "${local.fighter_github.repository}/.github/workflows/deploy.yml@refs/heads/main"
+    assertion.sub == "${local.fighter_subject_prefix}:environment:production" &&
+    assertion.workflow_ref == "${local.fighter_repository}/.github/workflows/deploy.yml@refs/heads/main"
   EOT
 
   oidc {
