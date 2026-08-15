@@ -20,7 +20,6 @@
 
 let
   dbApps = [
-    { name = "hush";                 pgschemaManagesGrants = true; }
     { name = "stream_tag_inventory"; pgschemaManagesGrants = true; }
     { name = "template";             pgschemaManagesGrants = false; }
     { name = "fighter";              pgschemaManagesGrants = true; }
