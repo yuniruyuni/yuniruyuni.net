@@ -209,6 +209,29 @@ resource "google_project_iam_member" "tunnel_gateway_logwriter" {
   member  = "serviceAccount:${google_service_account.tunnel_gateway.email}"
 }
 
+# -----------------------------------------------------------------------------
+# Legacy default Compute service account
+# -----------------------------------------------------------------------------
+#
+# costume / lom / web / stream-tag-inventory / template とその migration job は
+# この 1 つの ID で動く。GCP は Compute Engine API 有効化時にこの SA へ
+# roles/editor を自動付与するが、それは剥がしてある (2026-08-16)。
+#
+# editor は secretmanager.versions.access を含まないので secret を直接は読めない
+# が、iam.serviceAccounts.actAs と run.services.update を含む。この 2 つが揃うと
+# 「fighter-migration として動く Cloud Run job を deploy して fighter の secret を
+# マウントし中身を出力する」が成立し、fighter_security.tf の per-workload 境界が
+# まるごと迂回される。compute.instances.setMetadata 経由で tunnel-gateway の
+# startup-script を書き換え gce-tunnel-token を抜く経路も同様に通る。
+#
+# この SA が実際に必要なのは、per-secret に付与済みの secretAccessor と、
+# 下の logWriter だけ。editor を再付与しないこと。
+resource "google_project_iam_member" "legacy_compute_logwriter" {
+  project = var.gcp_project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${local.legacy_default_compute_service_account}"
+}
+
 # =============================================================================
 # VPC Network with Private Google Access
 # =============================================================================
