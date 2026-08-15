@@ -72,6 +72,26 @@ output "tunnel_gateway_service_account" {
 }
 
 # =============================================================================
+# Cloudflare Access client IDs — values to register in app GitHub secrets
+# =============================================================================
+
+# Marked sensitive not because the value is a credential (it is the identifier
+# sent in the CF-Access-Client-Id header) but because plan output is posted to
+# PR comments on this public repository.
+
+output "cf_db_access_client_id" {
+  description = "Shared DB tunnel client ID (CF_DB_ACCESS_CLIENT_ID in hush / template / StreamTagInventory)"
+  value       = cloudflare_zero_trust_access_service_token.cloud_run_db.client_id
+  sensitive   = true
+}
+
+output "fighter_cf_db_access_client_ids" {
+  description = "Per-workload Fighter client IDs (CF_DB_ACCESS_CLIENT_ID_* in the FighterNotes production environment)"
+  value       = { for name, token in cloudflare_zero_trust_access_service_token.fighter_db : name => token.client_id }
+  sensitive   = true
+}
+
+# =============================================================================
 # CI (terraform-itself) Outputs — values to register in GitHub secrets
 # =============================================================================
 

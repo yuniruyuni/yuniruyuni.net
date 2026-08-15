@@ -262,24 +262,12 @@ resource "cloudflare_zero_trust_access_policy" "fighter_db" {
   }]
 }
 
-resource "google_secret_manager_secret" "fighter_cf_db_client_id" {
-  for_each = local.fighter_workloads
-
-  secret_id = "fighter-${each.key}-cf-db-access-client-id"
-  replication {
-    auto {}
-  }
-  depends_on = [google_project_service.required]
-}
-
-resource "google_secret_manager_secret_version" "fighter_cf_db_client_id" {
-  for_each = local.fighter_workloads
-
-  secret                 = google_secret_manager_secret.fighter_cf_db_client_id[each.key].id
-  secret_data_wo         = cloudflare_zero_trust_access_service_token.fighter_db[each.key].client_id
-  secret_data_wo_version = 1
-}
-
+# Per-workload isolation is carried by client_secret alone. Each workload keeps
+# its own Cloudflare token and its own Secret Manager secret + IAM binding for
+# the secret half. The client_id half is the identifier sent in the
+# CF-Access-Client-Id header and cannot authenticate without its secret, so it
+# is published as the `fighter_cf_db_access_client_ids` output and injected by
+# the release workflow rather than billed as an active secret version.
 resource "google_secret_manager_secret" "fighter_cf_db_client_secret" {
   for_each = local.fighter_workloads
 
@@ -296,14 +284,6 @@ resource "google_secret_manager_secret_version" "fighter_cf_db_client_secret" {
   secret                 = google_secret_manager_secret.fighter_cf_db_client_secret[each.key].id
   secret_data_wo         = cloudflare_zero_trust_access_service_token.fighter_db[each.key].client_secret
   secret_data_wo_version = 1
-}
-
-resource "google_secret_manager_secret_iam_member" "fighter_cf_db_client_id" {
-  for_each = local.fighter_workloads
-
-  secret_id = google_secret_manager_secret.fighter_cf_db_client_id[each.key].id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.fighter_workload[each.key].email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "fighter_cf_db_client_secret" {

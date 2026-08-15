@@ -465,21 +465,11 @@ resource "google_secret_manager_secret_iam_member" "db_app_password_accessor" {
 # Secret Manager (Cloudflare Access service token for DB tunnel)
 # =============================================================================
 
-resource "google_secret_manager_secret" "cf_db_access_client_id" {
-  secret_id = "cf-db-access-client-id"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.required]
-}
-
-resource "google_secret_manager_secret_version" "cf_db_access_client_id" {
-  secret      = google_secret_manager_secret.cf_db_access_client_id.id
-  secret_data = cloudflare_zero_trust_access_service_token.cloud_run_db.client_id
-}
-
+# Only client_secret lives in Secret Manager. client_id is the identifier sent
+# in the CF-Access-Client-Id header and cannot authenticate on its own, so it is
+# published as the `cf_db_access_client_id` output and injected by each app's
+# deploy workflow instead. Secret Manager bills per active secret version, and a
+# value that needs no confidentiality does not earn that recurring charge.
 resource "google_secret_manager_secret" "cf_db_access_client_secret" {
   secret_id = "cf-db-access-client-secret"
 
@@ -498,13 +488,6 @@ resource "google_secret_manager_secret_version" "cf_db_access_client_secret" {
 # The shared DB tunnel token belongs to workloads that still run as the legacy
 # default Compute SA. Dedicated workloads such as Fighter receive unique tokens
 # in their own boundary instead of inheriting this shared credential.
-resource "google_secret_manager_secret_iam_member" "cf_db_client_id_accessor" {
-  for_each  = local.db_apps
-  secret_id = google_secret_manager_secret.cf_db_access_client_id.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.legacy_default_compute_service_account}"
-}
-
 resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor" {
   for_each  = local.db_apps
   secret_id = google_secret_manager_secret.cf_db_access_client_secret.id

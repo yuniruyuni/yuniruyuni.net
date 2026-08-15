@@ -85,7 +85,13 @@ DB が必要なアプリだけ実施する。
 
    - owner/migration password: `new-app-db-password`
    - app password: `new-app-db-app-password`
-   - Cloudflare Access service token: `cf-db-access-client-id` / `cf-db-access-client-secret`
+   - Cloudflare Access service token (secret のみ): `cf-db-access-client-secret`
+   - client ID は Secret Manager ではなくアプリ repository の GitHub Actions secret
+     `CF_DB_ACCESS_CLIENT_ID` に登録し、deploy 時に `cloudrun.yaml` /
+     `cloudrun-job.yaml` の `CF_DB_ACCESS_CLIENT_ID_PLACEHOLDER` を置換する
+     (`terraform output -raw cf_db_access_client_id` で取得)。
+     Secret Manager は active version 数で課金されるため、`CF-Access-Client-Id`
+     ヘッダの識別子でしかない client ID は置かない。
 
 ## デプロイ順
 
