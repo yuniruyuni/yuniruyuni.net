@@ -32,7 +32,6 @@ locals {
   # hostname = "" means root domain (yuniruyuni.net)
   cloud_run_services = {
     costume              = { name = "costume", hostname = "costume" }
-    hush                 = { name = "hush", hostname = "hush" }
     lom                  = { name = "lom", hostname = "lom" }
     stream_tag_inventory = { name = "stream-tag-inventory", hostname = "tags" }
     web                  = { name = "web", hostname = "" }
@@ -51,9 +50,6 @@ locals {
   # DB-enabled apps: each gets 2 secrets (app password + admin password)
   # New app: add one entry here
   db_apps = {
-    hush = {
-      service_name = "hush"
-    }
     stream_tag_inventory = {
       service_name = "stream-tag-inventory"
     }
@@ -76,36 +72,10 @@ locals {
   # Runtime secrets that are created in Secret Manager by Terraform but whose
   # values are inserted manually. Values are intentionally not in Terraform
   # state. Each listed Cloud Run service account receives secretAccessor.
-  runtime_secrets = {
-    hush_openai_api_key = {
-      secret_id = "hush-openai-api-key"
-      service   = "hush"
-    }
-    hush_session_secret = {
-      secret_id = "hush-session-secret"
-      service   = "hush"
-    }
-    hush_overlay_access_token = {
-      secret_id = "hush-overlay-access-token"
-      service   = "hush"
-    }
-    hush_google_oauth_client_id = {
-      secret_id = "hush-google-oauth-client-id"
-      service   = "hush"
-    }
-    hush_google_oauth_client_secret = {
-      secret_id = "hush-google-oauth-client-secret"
-      service   = "hush"
-    }
-    hush_twitch_oauth_client_id = {
-      secret_id = "hush-twitch-oauth-client-id"
-      service   = "hush"
-    }
-    hush_twitch_oauth_client_secret = {
-      secret_id = "hush-twitch-oauth-client-secret"
-      service   = "hush"
-    }
-  }
+  # 現在は空。hush を local ツールへ再編したため、唯一の利用者だった 7 本を
+  # 削除した。新しい runtime secret を持つアプリを追加する際はここに戻す
+  # (docs/add-app.md 参照)。
+  runtime_secrets = {}
 }
 
 # =============================================================================
