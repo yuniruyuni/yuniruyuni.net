@@ -76,7 +76,6 @@ variable "github_repositories" {
   default = [
     "StreamTagInventory",
     "costume",
-    "hush",
     "LegendOfManaWeapon",
     "yuniruyuni.net",
     "template",

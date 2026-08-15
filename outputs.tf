@@ -80,7 +80,7 @@ output "tunnel_gateway_service_account" {
 # PR comments on this public repository.
 
 output "cf_db_access_client_id" {
-  description = "Shared DB tunnel client ID (CF_DB_ACCESS_CLIENT_ID in hush / template / StreamTagInventory)"
+  description = "Shared DB tunnel client ID (CF_DB_ACCESS_CLIENT_ID in template / StreamTagInventory)"
   value       = cloudflare_zero_trust_access_service_token.cloud_run_db.client_id
   sensitive   = true
 }
