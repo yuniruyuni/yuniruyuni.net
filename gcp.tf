@@ -458,8 +458,13 @@ resource "google_secret_manager_secret_version" "cf_db_access_client_secret" {
 # The shared DB tunnel token belongs to workloads that still run as the legacy
 # default Compute SA. Dedicated workloads such as Fighter receive unique tokens
 # in their own boundary instead of inheriting this shared credential.
+#
+# Deliberately NOT keyed by db_apps. Neither the secret nor the member varies
+# per app, so a for_each produced N Terraform resources describing one single
+# IAM binding. Dropping any one app then destroyed that binding and took down
+# every remaining service that reads this secret -- which is exactly what
+# happened when hush was removed on 2026-08-15. One binding, one resource.
 resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor" {
-  for_each  = local.db_apps
   secret_id = google_secret_manager_secret.cf_db_access_client_secret.id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${local.legacy_default_compute_service_account}"
