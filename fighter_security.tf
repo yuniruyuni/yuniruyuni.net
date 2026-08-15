@@ -335,6 +335,8 @@ resource "google_artifact_registry_repository" "fighter" {
     immutable_tags = true
   }
 
+  # KEEP は DELETE より優先されるため、直近 10 版は経過日数に関わらず残り、
+  # rollback 先は常に確保される。
   cleanup_policies {
     id     = "keep-recent-versions"
     action = "KEEP"
@@ -343,11 +345,15 @@ resource "google_artifact_registry_repository" "fighter" {
     }
   }
 
+  # DELETE 側に tag_state = "UNTAGGED" を付けてはいけない。immutable_tags を
+  # 有効にしているのでリリース image は必ず TAGGED であり、UNTAGGED 限定の
+  # DELETE はそれらに一度も一致しない。実際 keep_count = 10 のはずが 98 版
+  # 2.8GB まで溜まっていた (2026-08-15 に発覚)。apps repo 側が肥大していない
+  # のは、そちらの DELETE が tag_state で絞っていないため。
   cleanup_policies {
-    id     = "delete-old-untagged-images"
+    id     = "delete-old-images"
     action = "DELETE"
     condition {
-      tag_state  = "UNTAGGED"
       older_than = "2592000s"
     }
   }
