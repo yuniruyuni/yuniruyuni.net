@@ -37,6 +37,7 @@ locals {
     web                  = { name = "web", hostname = "" }
     template             = { name = "template", hostname = "template" }
     fighter              = { name = "fighter", hostname = "fighter" }
+    streamer_post        = { name = "streamer-post", hostname = "post" }
   }
 
   # Cloud Run services are invoked through the GCE tunnel gateway. The services
@@ -60,6 +61,9 @@ locals {
     fighter = {
       service_name = "fighter"
     }
+    streamer_post = {
+      service_name = "streamer-post"
+    }
   }
 
   # GitHub Apps Deployer roles
@@ -72,10 +76,28 @@ locals {
   # Runtime secrets that are created in Secret Manager by Terraform but whose
   # values are inserted manually. Values are intentionally not in Terraform
   # state. Each listed Cloud Run service account receives secretAccessor.
-  # 現在は空。hush を local ツールへ再編したため、唯一の利用者だった 7 本を
-  # 削除した。新しい runtime secret を持つアプリを追加する際はここに戻す
-  # (docs/add-app.md 参照)。
-  runtime_secrets = {}
+  # 値は Terraform state に入れず手動で version を投入する (docs/add-app.md)。
+  runtime_secrets = {
+    # StreamerPost。1 設置 = 1 配信者で運用するため、許可するメールアドレスも
+    # 秘匿情報として扱う (public repo に個人のアドレスを置かない)。
+    # 詳細は StreamerPost の docs/single-tenant.md
+    streamer_post_better_auth_secret = {
+      secret_id = "streamer-post-better-auth-secret"
+      service   = "streamer_post"
+    }
+    streamer_post_allowed_emails = {
+      secret_id = "streamer-post-allowed-emails"
+      service   = "streamer_post"
+    }
+    streamer_post_twitch_client_secret = {
+      secret_id = "streamer-post-twitch-client-secret"
+      service   = "streamer_post"
+    }
+    streamer_post_google_client_secret = {
+      secret_id = "streamer-post-google-client-secret"
+      service   = "streamer_post"
+    }
+  }
 }
 
 # =============================================================================
