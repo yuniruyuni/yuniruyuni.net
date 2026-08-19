@@ -55,14 +55,29 @@ in
 
   # このユーザに許可する principal。証明書の principal がここに無ければ
   # 認証は通らない。
-  environment.etc."ssh/principals/${deployUser}".text = ''
-    demo
-  '';
+  #
+  # mode を指定すると environment.etc は symlink ではなく実体を /etc へ置く。
+  # StrictModes 下で /nix/store 経由の symlink を避けるため明示する。
+  environment.etc."ssh/principals/${deployUser}" = {
+    text = ''
+      demo
+    '';
+    mode = "0444";
+  };
+
+  # AuthorizedPrincipalsFile は extraConfig では設定できない。
+  #
+  # sshd_config は同じキーワードの最初の行が勝つ。NixOS は
+  # services.openssh.settings で AuthorizedPrincipalsFile を既定値
+  # (none) として先に書き出すため、後ろへ追記しても無視される。
+  # 実際 sshd -T では TrustedUserCAKeys だけが反映され、
+  # authorizedprincipalsfile は none のままだった。
+  services.openssh.settings.AuthorizedPrincipalsFile = "/etc/ssh/principals/%u";
 
   services.openssh.extraConfig = ''
     # oidc-ssh-ca が発行した証明書を信頼する。
+    # TrustedUserCAKeys は NixOS が既定で書き出さないため追記で効く。
     TrustedUserCAKeys ${config.services.oidc-ssh-ca.caPublicKeyPath}
-    AuthorizedPrincipalsFile /etc/ssh/principals/%u
   '';
 
   services.oidc-ssh-ca = {
