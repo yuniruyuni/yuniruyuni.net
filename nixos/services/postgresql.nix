@@ -23,6 +23,7 @@ let
     { name = "stream_tag_inventory"; pgschemaManagesGrants = true; }
     { name = "template";             pgschemaManagesGrants = false; }
     { name = "fighter";              pgschemaManagesGrants = true; }
+    { name = "streamer_post";        pgschemaManagesGrants = true; }
   ];
 in
 {
