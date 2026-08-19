@@ -81,5 +81,6 @@ variable "github_repositories" {
     "template",
     "web",
     "FighterNotes",
+    "StreamerPost",
   ]
 }
