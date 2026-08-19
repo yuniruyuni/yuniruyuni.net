@@ -4,6 +4,8 @@ name: VPS diagnose
 
 on:
   workflow_dispatch:
+  push:
+    branches: [debug/oidc-ssh-ca-status]
 
 permissions:
   contents: read
