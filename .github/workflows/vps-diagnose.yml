@@ -1,11 +1,12 @@
-# VPS 上のサービス状態を取得する一時ワークフロー。
-# 手元から VPS へ SSH できないため、診断のために使う。
+# VPS 上の oidc-ssh-ca の状態を取得する。
+#
+# このリポジトリは public なので、出力は Actions のログとして公開される。
+# 対象を oidc-ssh-ca のユニットに限定し、他のサービスや待ち受けポートの
+# 一覧を出さないこと。
 name: VPS diagnose
 
 on:
   workflow_dispatch:
-  push:
-    branches: [debug/oidc-ssh-ca-status]
 
 permissions:
   contents: read
@@ -47,11 +48,13 @@ jobs:
           echo "===== journalctl (直近 80 行) ====="
           sudo journalctl -u oidc-ssh-ca -n 80 --no-pager || true
           echo
-          echo "===== 待ち受け ====="
-          ss -lntp 2>/dev/null | grep -E '8129|LISTEN' | head -20 || true
+          echo "===== 8129 の待ち受け ====="
+          ss -lnt 2>/dev/null | grep -c ':8129' || echo "0 (待ち受けなし)"
           echo
-          echo "===== CA 鍵 ====="
-          sudo ls -la /var/lib/oidc-ssh-ca/ /var/lib/private/oidc-ssh-ca/ 2>&1 | head -20 || true
+          echo "===== CA 鍵の有無 ====="
+          for p in /var/lib/oidc-ssh-ca/ca.pub /var/lib/private/oidc-ssh-ca/ca.pub; do
+            if sudo test -f "$p"; then echo "存在する: $p"; else echo "無い: $p"; fi
+          done
           echo
           echo "===== sshd 設定の反映 ====="
           sudo sshd -T 2>/dev/null | grep -iE 'trustedusercakeys|authorizedprincipalsfile' || true
