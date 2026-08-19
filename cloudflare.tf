@@ -38,6 +38,7 @@ locals {
     lom      = { name = "lom", type = "CNAME", target = "tunnel_gce", proxied = true }
     template = { name = "template", type = "CNAME", target = "tunnel_gce", proxied = true }
     fighter  = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
+    post     = { name = "post", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
 }
 
