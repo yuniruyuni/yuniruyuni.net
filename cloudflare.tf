@@ -28,7 +28,8 @@ locals {
     ssh = { name = "ssh", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # PostgreSQL via VPS Tunnel (TCP proxied through Cloudflare)
-    db = { name = "db", type = "CNAME", target = "tunnel_main", proxied = true }
+    db     = { name = "db", type = "CNAME", target = "tunnel_main", proxied = true }
+    ssh_ca = { name = "ssh-ca", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # GCE Tunnel (CNAME to gce tunnel)
     # Root domain uses CNAME flattening (Cloudflare feature)
@@ -88,6 +89,14 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "db.${var.zone_name}"
         service  = "tcp://localhost:5432"
+      },
+      # oidc-ssh-ca (GitHub Actions が短命 SSH 証明書を取得する)
+      #
+      # GitHub Actions から到達できる必要があるため Access は掛けない。
+      # 認可はサービス自身が OIDC トークンの claim を照合して行う。
+      {
+        hostname = "ssh-ca.${var.zone_name}"
+        service  = "http://localhost:8129"
       },
       # Catch-all (required)
       {
