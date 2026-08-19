@@ -82,32 +82,10 @@
         "type": "github"
       }
     },
-    "oidc-ssh-ca": {
-      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1787112821,
-        "narHash": "sha256-oF/KkCDeUTiPKJUkaenQEd7pLmzpYMBFYtz/7CxwQdc=",
-        "owner": "yuniruyuni",
-        "repo": "oidc-ssh-ca",
-        "rev": "101f33b2527c6e4ccd4df0267a97e096e766e28b",
-        "type": "github"
-      },
-      "original": {
-        "owner": "yuniruyuni",
-        "ref": "v0.1.2",
-        "repo": "oidc-ssh-ca",
-        "type": "github"
-      }
-    },
     "root": {
       "inputs": {
         "agenix": "agenix",
-        "nixpkgs": "nixpkgs",
-        "oidc-ssh-ca": "oidc-ssh-ca"
+        "nixpkgs": "nixpkgs"
       }
     },
     "systems": {

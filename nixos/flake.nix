@@ -9,15 +9,9 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    # GitHub Actions OIDC から短命 SSH 証明書を発行する
-    oidc-ssh-ca = {
-      url = "github:yuniruyuni/oidc-ssh-ca/v0.1.2";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, agenix, oidc-ssh-ca, ... }: {
+  outputs = { self, nixpkgs, agenix, ... }: {
     nixosConfigurations.vps = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
@@ -29,11 +23,6 @@
 
         # Agenix module for secrets
         agenix.nixosModules.default
-
-        # oidc-ssh-ca (モジュールとパッケージ)
-        oidc-ssh-ca.nixosModules.default
-        ./services/oidc-ssh-ca.nix
-        { _module.args.oidc-ssh-ca = oidc-ssh-ca.packages.x86_64-linux.default; }
         ({ pkgs, ... }: {
           # Agenix configuration
           # Use converted age key (generated from SSH host key via ssh-to-age)
