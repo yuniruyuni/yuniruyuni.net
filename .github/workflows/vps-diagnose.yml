@@ -57,5 +57,18 @@ jobs:
           done
           echo
           echo "===== sshd 設定の反映 ====="
-          sudo sshd -T 2>/dev/null | grep -iE 'trustedusercakeys|authorizedprincipalsfile' || true
+          sudo sshd -T 2>&1 | grep -iE 'trustedusercakeys|authorizedprincipalsfile' || echo "(設定が見えない)"
+          echo
+          echo "===== principal ファイル ====="
+          ls -la /etc/ssh/principals/ 2>&1 || echo "無い"
+          cat /etc/ssh/principals/deploy 2>&1 || true
+          echo
+          echo "===== CA 公開鍵の権限 ====="
+          sudo ls -la /var/lib/oidc-ssh-ca/ 2>&1 | head
+          echo
+          echo "===== deploy ユーザ ====="
+          getent passwd deploy || echo "deploy ユーザが無い"
+          echo
+          echo "===== 直近の sshd 認証失敗 ====="
+          sudo journalctl -u sshd -n 40 --no-pager 2>&1 | grep -iE 'deploy|cert|principal|Invalid|Failed|error' | tail -20 || true
           REMOTE
