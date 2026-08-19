@@ -89,16 +89,16 @@
         ]
       },
       "locked": {
-        "lastModified": 1787111892,
-        "narHash": "sha256-L/UU2fvFCQzrJ6h9Dut6+hkKh6XQDNnMjK4HGm+Q0WQ=",
+        "lastModified": 1787112821,
+        "narHash": "sha256-oF/KkCDeUTiPKJUkaenQEd7pLmzpYMBFYtz/7CxwQdc=",
         "owner": "yuniruyuni",
         "repo": "oidc-ssh-ca",
-        "rev": "bfb133b87ead98967294ba1a9b701788df453b2c",
+        "rev": "101f33b2527c6e4ccd4df0267a97e096e766e28b",
         "type": "github"
       },
       "original": {
         "owner": "yuniruyuni",
-        "ref": "v0.1.1",
+        "ref": "v0.1.2",
         "repo": "oidc-ssh-ca",
         "type": "github"
       }

@@ -12,7 +12,7 @@
 
     # GitHub Actions OIDC から短命 SSH 証明書を発行する
     oidc-ssh-ca = {
-      url = "github:yuniruyuni/oidc-ssh-ca/v0.1.1";
+      url = "github:yuniruyuni/oidc-ssh-ca/v0.1.2";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
