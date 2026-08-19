@@ -68,24 +68,46 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1751274312,
-        "narHash": "sha256-/bVBlRpECLVzjV19t5KMdMFWSwKLtb5RyXdjz3LJT+g=",
+        "lastModified": 1782847189,
+        "narHash": "sha256-twXPFqFsrrY5r28Zh7Homgcp2gUMBgQ6WDS98Q/3xFI=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "50ab793786d9de88ee30ec4e4c24fb4236fc2674",
+        "rev": "b6018f87da91d19d0ab4cf979885689b469cdd41",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
-        "ref": "nixos-24.11",
+        "ref": "nixos-25.11",
         "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "oidc-ssh-ca": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787111892,
+        "narHash": "sha256-L/UU2fvFCQzrJ6h9Dut6+hkKh6XQDNnMjK4HGm+Q0WQ=",
+        "owner": "yuniruyuni",
+        "repo": "oidc-ssh-ca",
+        "rev": "bfb133b87ead98967294ba1a9b701788df453b2c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "yuniruyuni",
+        "ref": "v0.1.1",
+        "repo": "oidc-ssh-ca",
         "type": "github"
       }
     },
     "root": {
       "inputs": {
         "agenix": "agenix",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "oidc-ssh-ca": "oidc-ssh-ca"
       }
     },
     "systems": {
