@@ -34,17 +34,20 @@
     # 明示が必要。既定値は null で、oci-containers が `&& linger` と評価するため
     # 未設定だと Nix の型エラーになる。
     #
-    # true にする理由: 最初 false で試したところ podman が起動時に
-    #   "The cgroupv2 manager is set to systemd but there is no systemd user
-    #    session available" / "enable lingering with: loginctl enable-linger"
-    # と警告し、cgroupfs へフォールバックした。systemd cgroup 管理下に置くには
-    # lingering が要る。
+    # false にする理由 (一度 true で失敗している):
     #
-    # モジュールは conmon + linger = true の組み合わせに警告を出すが、
-    # これは "linger を使うなら sdnotify = healthy にできる" という助言であって
-    # エラーではない。healthy はコンテナ側のヘルスチェック定義が前提になり、
-    # n8n の image が HEALTHCHECK を持つか不明なので conmon のままにする。
-    linger = true;
+    # モジュールは conmon + linger = true の組み合わせに警告を出す。当初これを
+    # 「linger を使うなら healthy にできる」という助言と解釈して true にしたが、
+    # 実際には unit が activating のままタイムアウトして failed になった。
+    # コンテナ自体は起動して応答するのに systemd が READY を受け取れない。
+    #
+    # モジュールが認めている組み合わせは conmon + linger = false か
+    # healthy + linger = true の 2 つ。healthy はコンテナ側の HEALTHCHECK が
+    # 前提になるため、前者を採る。
+    #
+    # linger 無しでは podman が cgroup 管理を systemd から cgroupfs へ
+    # フォールバックする警告を出すが、これは警告であって起動は妨げない。
+    linger = false;
   };
   users.groups.n8n = { };
 
