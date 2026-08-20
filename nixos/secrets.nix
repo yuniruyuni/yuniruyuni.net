@@ -16,10 +16,13 @@
       mode = "0400";
     };
 
+    # n8n は rootless podman で動くため、サービスを動かすユーザが読める
+    # 必要がある。root 所有のままだと podman が起動時に
+    # "permission denied" で落ちる。
     n8n-encryption-key = {
       file = ./secrets/n8n-encryption-key.age;
-      owner = "root";
-      group = "root";
+      owner = "n8n";
+      group = "n8n";
       mode = "0400";
     };
 
