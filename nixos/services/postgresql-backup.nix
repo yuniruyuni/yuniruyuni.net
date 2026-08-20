@@ -24,7 +24,16 @@ let
 
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BACKUP_FILE="${staging_dir}/postgresql-backup-$TIMESTAMP.sql.gz"
+    ENCRYPTED_FILE="$BACKUP_FILE.age"
     RCLONE_CONFIG="${rclone_config_path}"
+
+    # Remove staging files on every exit path. With `set -e` a mid-script
+    # failure used to skip the cleanup below and leave the *plaintext* dump
+    # on disk indefinitely.
+    cleanup() {
+      rm -f "$BACKUP_FILE" "$ENCRYPTED_FILE"
+    }
+    trap cleanup EXIT
 
     echo "Starting PostgreSQL backup..."
 
@@ -34,7 +43,6 @@ let
 
     # Encrypt backup before upload
     echo "Encrypting backup..."
-    ENCRYPTED_FILE="$BACKUP_FILE.age"
     ${pkgs.age}/bin/age -r "${age_recipient}" -o "$ENCRYPTED_FILE" "$BACKUP_FILE"
     rm -f "$BACKUP_FILE"
 
@@ -47,10 +55,8 @@ let
     echo "Cleaning up old backups..."
     ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
       delete ${gdrive_remote}:${gdrive_path}/ \
-      --min-age 7d
-
-    # Cleanup local temp file
-    rm -f "$ENCRYPTED_FILE"
+      --min-age 7d \
+      --drive-use-trash=false
 
     echo "Backup completed successfully!"
     echo "Uploaded: ${gdrive_remote}:${gdrive_path}/$(basename $ENCRYPTED_FILE)"
