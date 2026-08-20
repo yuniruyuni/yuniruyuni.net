@@ -16,6 +16,7 @@
     ./services/monitoring.nix
     ./services/postgresql.nix
     ./services/postgresql-backup.nix
+    ./services/swap.nix
   ];
 
   # Boot configuration
