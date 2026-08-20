@@ -53,6 +53,7 @@
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINNgQ6u084ZWWEpXB/ikcbWOn3xRPNjzPMwOzHsYj458 yuniruyuni@MacBook-Air"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC6/vedtV7hyu88uHVfwZpm4w2KPYgZqZkmBTKBcnwvP github-actions@infrastructure"
+      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICzxszhOK9EyGC/PJr7Wn/BjDHU02b2F1j8etTbSak4l yuniruyuni@WSL"
     ];
   };
 
