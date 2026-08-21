@@ -42,9 +42,9 @@ locals {
     costume = { name = "costume", type = "CNAME", target = "tunnel_main", proxied = true }
     lom     = { name = "lom", type = "CNAME", target = "tunnel_main", proxied = true }
     root    = { name = var.zone_name, type = "CNAME", target = "tunnel_main", proxied = true }
+    tags    = { name = "tags", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # GCE Tunnel (CNAME to gce tunnel)
-    tags     = { name = "tags", type = "CNAME", target = "tunnel_gce", proxied = true }
     fighter  = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
 }
@@ -120,6 +120,10 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = var.zone_name
         service  = "http://localhost:8140"
+      },
+      {
+        hostname = "tags.${var.zone_name}"
+        service  = "http://localhost:8150"
       },
       # Catch-all (required)
       {
