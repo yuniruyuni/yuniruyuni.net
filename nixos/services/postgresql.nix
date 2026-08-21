@@ -37,9 +37,19 @@ in
     };
 
     # Authentication: md5 for local TCP connections
+    #
+    # local の md5 行は VPS 上のコンテナ向け。コンテナは独立した netns に
+    # 置いており、ホストの 127.0.0.1:5432 には到達できない。そこで
+    # /run/postgresql の Unix ソケットを bind mount して繋ぐ (services/apps.nix)。
+    # 既定では postgres 以外は peer 認証になり "Peer authentication failed" で
+    # 弾かれるため、パスワード認証を許可する行を足す。
+    #
+    # 到達性は TCP の 127.0.0.1/32 md5 と同じ (ローカルからパスワードで接続) で、
+    # 権限が増えるわけではない。
     authentication = ''
       # TYPE  DATABASE        USER            ADDRESS         METHOD
       local   all             postgres                        peer
+      local   all             all                             md5
       host    all             all             127.0.0.1/32    md5
     '';
 
