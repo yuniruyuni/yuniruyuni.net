@@ -45,7 +45,7 @@ in
     #
     # local の md5 行は VPS 上のコンテナ向け。コンテナは独立した netns に
     # 置いており、ホストの 127.0.0.1:5432 には到達できない。そこで
-    # /run/postgresql の Unix ソケットを bind mount して繋ぐ (services/apps.nix)。
+    # /run/postgresql の Unix ソケットを bind mount して繋ぐ (services/yunirun.nix)。
     # 既定では postgres 以外は peer 認証になり "Peer authentication failed" で
     # 弾かれるため、パスワード認証を許可する行を足す。
     #

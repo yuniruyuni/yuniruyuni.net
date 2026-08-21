@@ -9,7 +9,6 @@
 {
   imports = [
     ./hardware-configuration.nix
-    ./services/apps.nix
     ./services/cloudflared.nix
     ./services/n8n.nix
     ./services/incus.nix

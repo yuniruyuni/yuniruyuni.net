@@ -4,8 +4,8 @@
 # アプリの中身に関する設定 (ポート、環境変数、ワークロード) は各リポジトリの
 # yunirun.jsonc にあり、デプロイ時に運ばれてくる。
 #
-# 現行の services/apps.nix とは別のポート帯・uid 帯を使うので並行して動く。
-# 移行が済んだら apps.nix ごと削除する。
+# かつて services/apps.nix が同じ役目を担っていたが、こちらへ全て移し終えて
+# 撤去した。ポート帯と uid 帯は並行運用のためにずらしたものをそのまま使う。
 
 { ... }:
 
@@ -18,31 +18,30 @@
     # secrets/secrets.nix の onepassword と同じもの。
     adminRecipient = "age1t5u8r467lwp2t5d0qjr38va4nmly3wyg5k9fwttaakmu66q4zyvqq58qav";
 
-    # 現行の services/apps.nix と帯を重ねない。移行が済んだら既定値に戻す。
+    # 割り当ての帯。旧 apps.nix と並行して動かすためにずらしたもの。
+    # apps.nix は撤去したが、既定値に戻すと稼働中のアプリの uid とポートが
+    # 動き、Cloudflare の ingress が指す先を失うのでこのまま使う。
     basePort = 8200;
     baseUID = 6000;
 
     # 取り込むアプリ。この一覧がそのまま opkssh の認可になるので、
     # アプリ側が自分を勝手に取り込ませることはできない。
     #
-    # まずは template だけで実証する。アプリ名を template のままにすると
-    # 現行の apps.nix 側と DB (template) や unit 名を共有してしまうので、
-    # 検証中は別名にする。切り替え時に template へ改名する。
+    # 名前の末尾に付けていた 2 は、旧 apps.nix と並行して動かす間だけの措置
+    # だった。apps.nix を撤去したので外す。
+    #
+    # 名前は Linux ユーザ・unit 名・HAProxy の backend・opkssh の認可先に
+    # そのまま出る。converge は宣言に無いものを片付けないため、ここを
+    # 書き換えるだけでは旧名の資源が残り、しかも旧ユーザが uid とポートを
+    # 握ったままで新しいユーザを作れない。この変更を入れる前に、ホスト上で
+    # yunirun rename を 6 件走らせて割り当てを引き継がせてある。
     apps = {
-      template2 = "yuniruyuni/template";
-
-      # DB を持たない 3 つ。旧 apps.nix 側と並行して立ち上げ、動作を確認してから
-      # ingress を切り替える。名前に 2 を付けているのは、旧側と DB や unit 名を
-      # 共有しないため (この 3 つは DB を持たないが、unit 名は衝突する)。
-      costume2 = "yuniruyuni/costume";
-      lom2 = "yuniruyuni/LegendOfManaWeapon";
-      web2 = "yuniruyuni/web";
-
-      # DB と秘密を持つ 2 つ。既存の DB とパスワードをそのまま引き継ぐので、
-      # 旧 apps.nix 側と並行して動かしても認証は壊れない (アプリ側の
-      # yunirun.jsonc で databaseName と databasePasswords を指定している)。
-      tags2 = "yuniruyuni/StreamTagInventory";
-      post2 = "yuniruyuni/StreamerPost";
+      template = "yuniruyuni/template";
+      costume = "yuniruyuni/costume";
+      lom = "yuniruyuni/LegendOfManaWeapon";
+      web = "yuniruyuni/web";
+      tags = "yuniruyuni/StreamTagInventory";
+      post = "yuniruyuni/StreamerPost";
     };
   };
 }

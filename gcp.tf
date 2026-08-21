@@ -485,4 +485,5 @@ resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor
 # NOTE: アプリ固有の runtime secret を Terraform で作る仕組み (local.runtime_secrets と
 # google_secret_manager_secret.runtime) は 2026-08-21 に削除した。唯一の利用者だった
 # StreamerPost が VPS へ移り、秘密は agenix が持つようになったため。
-# VPS 上のアプリで秘密が要る場合は nixos/services/apps.nix の envSecrets を使う。
+# VPS 上のアプリで秘密が要る場合は、各リポジトリの yunirun.jsonc の secrets で
+# agenix の秘密名を指し、nixos/secrets.nix 側でその秘密を定義する。
