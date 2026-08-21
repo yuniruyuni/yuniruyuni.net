@@ -37,6 +37,12 @@
       costume2 = "yuniruyuni/costume";
       lom2 = "yuniruyuni/LegendOfManaWeapon";
       web2 = "yuniruyuni/web";
+
+      # DB と秘密を持つ 2 つ。既存の DB とパスワードをそのまま引き継ぐので、
+      # 旧 apps.nix 側と並行して動かしても認証は壊れない (アプリ側の
+      # yunirun.jsonc で databaseName と databasePasswords を指定している)。
+      tags2 = "yuniruyuni/StreamTagInventory";
+      post2 = "yuniruyuni/StreamerPost";
     };
   };
 }
