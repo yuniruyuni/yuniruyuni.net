@@ -106,7 +106,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       # StreamerPost。同じく HAProxy の frontend を向く。
       {
         hostname = "post.${var.zone_name}"
-        service  = "http://localhost:8110"
+        service  = "http://localhost:8240"
       },
       {
         hostname = "costume.${var.zone_name}"
@@ -123,7 +123,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       },
       {
         hostname = "tags.${var.zone_name}"
-        service  = "http://localhost:8150"
+        service  = "http://localhost:8250"
       },
       # Catch-all (required)
       {
