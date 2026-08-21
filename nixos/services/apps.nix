@@ -67,8 +67,63 @@ let
         # migration job を実行できる)。
         migration = {
           image = "ghcr.io/yuniruyuni/template-migration";
-          user = "template";
           secret = "db-password-template";
+          # migrate.sh が読む変数名はアプリごとに違うので明示する。
+          # 接続ユーザは owner ロール (DDL) を使う。
+          env = {
+            DB_USER = "template";
+            DB_NAME = "template";
+          };
+        };
+      };
+    };
+
+    streamer_post = {
+      uid = 986;
+
+      repo = "yuniruyuni/StreamerPost";
+      image = "ghcr.io/yuniruyuni/streamer-post";
+
+      frontendPort = 8110;
+      colorPorts = {
+        blue = 8111;
+        green = 8112;
+      };
+
+      healthPath = "/health";
+
+      # 非機密の環境変数。OAuth の client_id は仕様上公開値なのでここに置く。
+      env = {
+        APP_URL = "https://post.yuniruyuni.net";
+        TWITCH_CLIENT_ID = "j9ix66xl3fho3phh67letqvghu5dy2";
+        GOOGLE_CLIENT_ID = "249322615782-kpnt776l9k0li1fkmof069btpa8mvi9a.apps.googleusercontent.com";
+      };
+
+      # 秘密の環境変数。値は podman secret 経由で /run/agenix から実行時に取得され、
+      # unit ファイルにもディスクにも現れない。
+      envSecrets = {
+        BETTER_AUTH_SECRET = "streamer-post-better-auth-secret";
+        ALLOWED_EMAILS = "streamer-post-allowed-emails";
+        TWITCH_CLIENT_SECRET = "streamer-post-twitch-client-secret";
+        GOOGLE_CLIENT_SECRET = "streamer-post-google-client-secret";
+      };
+
+      db = {
+        # StreamerPost は database 名を DB_APP_NAME で読む
+        # (template の DB_NAME とは変数名が違う)。
+        nameVar = "DB_APP_NAME";
+        user = "streamer_post_app";
+        name = "streamer_post";
+        secret = "db-password-streamer_post_app";
+
+        migration = {
+          image = "ghcr.io/yuniruyuni/streamer-post-migration";
+          secret = "db-password-streamer_post";
+          # StreamerPost の migrate.sh は DB_APP_NAME を PGUSER と PGDATABASE の
+          # 両方に使う。owner ロール名と database 名が同じなので成立する。
+          env = {
+            DB_APP_NAME = "streamer_post";
+          };
         };
       };
     };
@@ -78,9 +133,16 @@ let
 
   deployUser = name: "deploy-${name}";
 
-  # そのアプリの deploy ユーザが読む必要のある agenix secret。
-  appSecrets = app:
+  # 他所 (services/postgresql.nix) で定義済みの secret。ここでは group/mode を
+  # 上書きするだけにする。
+  sharedSecrets = app:
     [ app.db.secret ] ++ lib.optional (app.db ? migration) app.db.migration.secret;
+
+  # このアプリ専用の secret。定義ごとここで持つ。
+  ownSecrets = app: lib.attrValues (app.envSecrets or { });
+
+  # そのアプリの deploy ユーザが読む必要のある agenix secret すべて。
+  appSecrets = app: sharedSecrets app ++ ownSecrets app;
 
   # コンテナが参照するローカルタグ。app-deploy が pull した image をこの名前に
   # 付け替えることで、unit 側は静的なまま中身だけ入れ替わる。
@@ -106,11 +168,13 @@ let
       Environment=PGHOST=/run/postgresql
       Environment=PGPORT=5432
       Environment=DB_USER=${app.db.user}
-      Environment=DB_NAME=${app.db.name}
+      Environment=${app.db.nameVar or "DB_NAME"}=${app.db.name}
+${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Environment=${k}=${v}") (app.env or { }))}
 
       # 値は podman secret 経由で /run/agenix から実行時に取得される。
       # ディスクにも unit ファイルにも秘密は現れない (services/podman-secrets.nix)。
       Secret=${app.db.secret},type=env,target=DB_PASSWORD
+${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Secret=${v},type=env,target=${k}") (app.envSecrets or { }))}
 
       [Service]
       Restart=always
@@ -182,8 +246,7 @@ ${lib.optionalString (app.db ? migration) ''
           --volume /run/postgresql:/run/postgresql \
           --env PGHOST=/run/postgresql \
           --env PGPORT=5432 \
-          --env DB_USER=${app.db.migration.user} \
-          --env DB_NAME=${app.db.name} \
+${lib.concatStringsSep " \\\n" (lib.mapAttrsToList (k: v: "          --env ${k}=${v}") app.db.migration.env)} \
           "${app.db.migration.image}:$tag"
 ''}
       # blue/green を順に入れ替える。片方を落としている間はもう片方が
@@ -289,13 +352,24 @@ in
   # deploy ユーザの両方が読む必要があるので、group を広げる。
   # migration を持つアプリは owner 側のパスワードも対象になる。
   age.secrets = lib.listToAttrs (lib.flatten (lib.mapAttrsToList (name: app:
+    # 他所で定義済みのものは group/mode だけ上書きする
     map (secret: {
       name = secret;
       value = {
         group = lib.mkForce (deployUser name);
         mode = lib.mkForce "0440";
       };
-    }) (appSecrets app)
+    }) (sharedSecrets app)
+    # アプリ専用のものは定義ごと持つ
+    ++ map (secret: {
+      name = secret;
+      value = {
+        file = ../secrets/${secret}.age;
+        owner = "root";
+        group = deployUser name;
+        mode = "0440";
+      };
+    }) (ownSecrets app)
   ) apps));
 
   # Quadlet unit の置き場所。

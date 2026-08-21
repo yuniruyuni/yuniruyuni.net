@@ -37,6 +37,13 @@ in
   # rclone config for Google Drive backup
   "rclone-config.age".publicKeys = systems ++ admins;
 
+  # StreamerPost (VPS 上で動作)。値は Secret Manager から移設したもので、
+  # 移行時にハッシュ一致を確認済み。
+  "streamer-post-better-auth-secret.age".publicKeys = systems ++ admins;
+  "streamer-post-allowed-emails.age".publicKeys = systems ++ admins;
+  "streamer-post-twitch-client-secret.age".publicKeys = systems ++ admins;
+  "streamer-post-google-client-secret.age".publicKeys = systems ++ admins;
+
   # PostgreSQL DB passwords (per-app: owner + app user)
   "db-password-stream_tag_inventory.age".publicKeys = systems ++ admins;
   "db-password-stream_tag_inventory_app.age".publicKeys = systems ++ admins;
