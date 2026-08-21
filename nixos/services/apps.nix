@@ -78,6 +78,37 @@ let
       };
     };
 
+    # DB を持たない静的寄りのアプリ。db を省略すると PostgreSQL 関連の設定と
+    # migration 段がまるごと生成されない。
+    costume = {
+      uid = 985;
+      repo = "yuniruyuni/costume";
+      image = "ghcr.io/yuniruyuni/costume";
+      frontendPort = 8120;
+      colorPorts = { blue = 8121; green = 8122; };
+      healthPath = "/health";
+    };
+
+    lom = {
+      uid = 984;
+      repo = "yuniruyuni/LegendOfManaWeapon";
+      image = "ghcr.io/yuniruyuni/lom";
+      # nginx で静的ファイルを配信するので 80 番。/health は無いので / を見る。
+      containerPort = 80;
+      frontendPort = 8130;
+      colorPorts = { blue = 8131; green = 8132; };
+      healthPath = "/";
+    };
+
+    web = {
+      uid = 983;
+      repo = "yuniruyuni/web";
+      image = "ghcr.io/yuniruyuni/web";
+      frontendPort = 8140;
+      colorPorts = { blue = 8141; green = 8142; };
+      healthPath = "/health";
+    };
+
     streamer_post = {
       uid = 986;
 
@@ -136,7 +167,8 @@ let
   # 他所 (services/postgresql.nix) で定義済みの secret。ここでは group/mode を
   # 上書きするだけにする。
   sharedSecrets = app:
-    [ app.db.secret ] ++ lib.optional (app.db ? migration) app.db.migration.secret;
+    lib.optionals (app ? db)
+      ([ app.db.secret ] ++ lib.optional (app.db ? migration) app.db.migration.secret);
 
   # このアプリ専用の secret。定義ごとここで持つ。
   ownSecrets = app: lib.attrValues (app.envSecrets or { });
@@ -148,6 +180,10 @@ let
   # 付け替えることで、unit 側は静的なまま中身だけ入れ替わる。
   localTag = name: "localhost/${name}:current";
 
+  # コンテナ内で listen するポート。blue/green は netns 内では同じポートのままで、
+  # ホスト側の公開ポートだけを分ける。
+  containerPort = app: app.containerPort or 3000;
+
   mkContainerFile = name: app: color:
     pkgs.writeText "${name}-${color}.container" ''
       [Unit]
@@ -155,13 +191,9 @@ let
 
       [Container]
       Image=${localTag name}
-      # blue/green は PORT だけが違う。PublishPort は使わず、アプリ自身に
-      # 別ポートを listen させる… のではなく netns 内は同じ 3000 のままにして
-      # ホスト側の公開ポートで分ける。
-      PublishPort=127.0.0.1:${toString app.colorPorts.${color}}:3000
-      Environment=PORT=3000
-      Environment=STATIC_DIR=./static
-
+      PublishPort=127.0.0.1:${toString app.colorPorts.${color}}:${toString (containerPort app)}
+      Environment=PORT=${toString (containerPort app)}
+${lib.optionalString (app ? db) ''
       # PostgreSQL へは Unix ソケットで繋ぐ。TCP を使わないので、この
       # コンテナからホストの loopback 上の他サービスへは到達できない。
       Volume=/run/postgresql:/run/postgresql
@@ -169,11 +201,11 @@ let
       Environment=PGPORT=5432
       Environment=DB_USER=${app.db.user}
       Environment=${app.db.nameVar or "DB_NAME"}=${app.db.name}
-${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Environment=${k}=${v}") (app.env or { }))}
-
       # 値は podman secret 経由で /run/agenix から実行時に取得される。
       # ディスクにも unit ファイルにも秘密は現れない (services/podman-secrets.nix)。
       Secret=${app.db.secret},type=env,target=DB_PASSWORD
+''}
+${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Environment=${k}=${v}") (app.env or { }))}
 ${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Secret=${v},type=env,target=${k}") (app.envSecrets or { }))}
 
       [Service]
@@ -227,7 +259,7 @@ ${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Secret=${v},type=e
       echo "==> pulling ${app.image}:$tag"
       ${pkgs.podman}/bin/podman pull --authfile "$authfile" "${app.image}:$tag"
       ${pkgs.podman}/bin/podman tag "${app.image}:$tag" "${localTag name}"
-${lib.optionalString (app.db ? migration) ''
+${lib.optionalString ((app ? db) && (app.db ? migration)) ''
       # スキーマ migration を blue/green より前に一度だけ流す。
       #
       # set -e により、失敗した時点でここで止まり blue/green には触れない。
