@@ -192,6 +192,12 @@ let
   mkSecretLinkService = name: app: {
     description = "Link agenix secrets into podman for ${name}";
     wantedBy = [ "multi-user.target" ];
+    # podman は secret 作成時の driver opts (lookup コマンドのパス等) を
+    # メタデータに保存する。つまり containers.conf を書き換えても既存の secret は
+    # 古いパスを参照し続ける。実際 lookup スクリプトを修正した際、
+    # secret を作り直すまで古い store パスが呼ばれ続けた。
+    # containers.conf が変わったら張り直す。
+    restartTriggers = [ config.environment.etc."containers/containers.conf".source ];
     # rootless podman は /run/user/<uid> を要求する。linger を有効にしてあるので
     # user@<uid>.service が起動時に立ち上がり、そこで作られる。
     after = [ "user@${toString app.uid}.service" ];
