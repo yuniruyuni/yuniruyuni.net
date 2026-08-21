@@ -110,16 +110,16 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       },
       {
         hostname = "costume.${var.zone_name}"
-        service  = "http://localhost:8120"
+        service  = "http://localhost:8210"
       },
       {
         hostname = "lom.${var.zone_name}"
-        service  = "http://localhost:8130"
+        service  = "http://localhost:8220"
       },
       # ルートドメイン (web)
       {
         hostname = var.zone_name
-        service  = "http://localhost:8140"
+        service  = "http://localhost:8230"
       },
       {
         hostname = "tags.${var.zone_name}"
