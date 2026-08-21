@@ -15,11 +15,18 @@
 # AuthorizedKeysFile と AuthorizedKeysCommand の両方を参照する)。
 # そのため万一 opkssh が動かなくてもアクセスを失わない。
 
-{ ... }:
+{ pkgs, ... }:
 
 {
   services.opkssh = {
     enable = true;
+
+    # nixpkgs 25.11 の v0.10.0 ではなく 0.16.0 を使う。
+    #
+    # v0.10.0 は SSH 証明書の principals を空にするが、この VPS の OpenSSH 10.3 は
+    # principal を持たないユーザ証明書を「Certificate lacks principal list」として
+    # 拒否する。2026-08-21 の疎通確認が実際にこれで落ちた。詳細は pkgs/opkssh.nix。
+    package = pkgs.callPackage ../pkgs/opkssh.nix { };
 
     # 既定では google / microsoft / github の 3 つが登録されるが、ここで
     # 受け付ける必要があるのは GitHub Actions だけなので絞る。

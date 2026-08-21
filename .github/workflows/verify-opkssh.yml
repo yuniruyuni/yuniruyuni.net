@@ -36,12 +36,17 @@ jobs:
         # 公式の install-linux.sh はサーバ用 (openssh-server の存在確認と sshd の
         # 設定まで行う) なので、クライアントではリリースバイナリを直接使う。
         #
-        # バージョンは VPS 側 (nixpkgs 25.11 の v0.10.0) に合わせて固定する。
-        # 証明書は client が作って server が検証するので、版がずれると
-        # フォーマットの差異で落ちうる。
+        # バージョンは VPS 側に合わせて固定する。証明書は client が作って
+        # server が検証するので、版がずれると成立しない。
+        #
+        # v0.10.0 (nixpkgs 25.11 の既定) は使えない。login が証明書の principals を
+        # 空にするため、OpenSSH 10.3 が「Certificate lacks principal list」として
+        # 拒否する。v0.16.0 は principals 未指定時に "opkssh-wildcard" を入れ、
+        # verify 側が principals= を返すことで成立する。両側に必要な修正なので
+        # VPS 側も 0.16.0 に上げている (nixos/pkgs/opkssh.nix)。
         env:
-          OPKSSH_VERSION: v0.10.0
-          OPKSSH_SHA256: e848e32695cfae8c18429c183fa11865de3b5669b6505fac3d4317911d352963
+          OPKSSH_VERSION: v0.16.0
+          OPKSSH_SHA256: c018c3e7baf98612b923e742dd87be38650bf61e3b755fb2bc90de177568b1bf
         run: |
           curl -sSLf "https://github.com/openpubkey/opkssh/releases/download/${OPKSSH_VERSION}/opkssh-linux-amd64" -o /usr/local/bin/opkssh
           echo "${OPKSSH_SHA256}  /usr/local/bin/opkssh" | sha256sum -c -
