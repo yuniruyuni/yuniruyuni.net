@@ -2,28 +2,33 @@
 # Provides database services for Cloud Run applications via Cloudflare Tunnel
 #
 # Design: Each app gets its own database + 2 users:
-#   - ${app.name}      : DB owner, used for migration (DDL)
-#   - ${app.name}_app  : application user (DML only)
+#   - <name>       : DB owner, used for migration (DDL)
+#   - <name>_app   : application user (DML only)
 # Access: localhost only (tunnel handles external connectivity)
-# New app: add entry to dbApps list + create 2 agenix secrets
+# New app: add name to dbApps list + create 2 agenix secrets
 #
-# pgschemaManagesGrants:
-#   true  = per-table GRANT / ALTER DEFAULT PRIVILEGES はアプリ側 (pgschema
-#           declarative) が管理する。NixOS は CONNECT / schema USAGE のみ付与
-#           (推奨: 新 table を追加する際に GRANT が migration で同時反映され、
-#           permission denied の時間帯が発生しない)
-#   false = NixOS 側で GRANT ... ON ALL TABLES + ALTER DEFAULT PRIVILEGES を
-#           activation 毎に一括付与する (pgschema 移行前のアプリ向け fallback)
-# 詳細は StreamTagInventory の ADR 0009 を参照。
+# 権限の責務分担:
+#   NixOS (ここ)  : ロールの存在、パスワード、DB の所有権、
+#                   app ロールへの CONNECT と schema USAGE
+#   pgschema (app): table 等のオブジェクトと、app ロールへの per-table GRANT
+#
+# table 単位の権限は必ずアプリ側の schema ファイルで宣言する。pgschema は
+# 宣言的なので、宣言されていない権限は「余分なもの」として REVOKE される。
+# NixOS 側から GRANT ... ON ALL TABLES を撒くと、それが毎回 REVOKE されては
+# activation で復活する振動になり、その間 app ロールが permission denied になる。
+# 実際 template でこれが起きていた (2026-08-21 に解消)。
+#
+# 「宣言し忘れた table は権限が付かない」= deploy 時に気づける、という性質を
+# 保つのが狙い。詳細は StreamTagInventory の ADR 0009 を参照。
 
 { config, pkgs, lib, ... }:
 
 let
   dbApps = [
-    { name = "stream_tag_inventory"; pgschemaManagesGrants = true; }
-    { name = "template";             pgschemaManagesGrants = false; }
-    { name = "fighter";              pgschemaManagesGrants = true; }
-    { name = "streamer_post";        pgschemaManagesGrants = true; }
+    "stream_tag_inventory"
+    "template"
+    "fighter"
+    "streamer_post"
   ];
 in
 {
@@ -54,27 +59,34 @@ in
     '';
 
     # Create application databases and users (derived from dbApps)
-    ensureDatabases = map (app: app.name) dbApps;
+    ensureDatabases = dbApps;
     ensureUsers = lib.concatMap (app: [
-      { name = app.name; ensureDBOwnership = true; } # owner/migration (DDL)
-      { name = "${app.name}_app"; }                   # application (DML only)
+      # schema apply (DDL) を行う owner。apply する権限の出所は GRANT ではなく
+      # DB の所有権そのもの。所有者は自分が作ったオブジェクトを所有するので
+      # 明示的な GRANT は要らず、pgschema が権限を宣言的に管理しても自分自身を
+      # 締め出すことがない。
+      { name = app; ensureDBOwnership = true; }
+      # アプリ用 (DML のみ)。所有権は持たせない。
+      # nixpkgs 側に「同名の database が ensureDatabases に無いと true にできない」
+      # という assertion があるため、_app ロールは構造的に所有者になれない。
+      { name = "${app}_app"; ensureDBOwnership = false; }
     ]) dbApps;
   };
 
   # Password secrets (derived from dbApps: 2 per app)
   age.secrets = lib.listToAttrs (lib.concatMap (app: [
     {
-      name = "db-password-${app.name}";
+      name = "db-password-${app}";
       value = {
-        file = ../secrets/db-password-${app.name}.age;
+        file = ../secrets/db-password-${app}.age;
         owner = "postgres";
         mode = "0400";
       };
     }
     {
-      name = "db-password-${app.name}_app";
+      name = "db-password-${app}_app";
       value = {
-        file = ../secrets/db-password-${app.name}_app.age;
+        file = ../secrets/db-password-${app}_app.age;
         owner = "postgres";
         mode = "0400";
       };
@@ -82,9 +94,10 @@ in
   ]) dbApps);
 
   # Set passwords + DB/schema-level privileges after PostgreSQL starts.
-  # app.pgschemaManagesGrants = true のアプリは per-table GRANT / ALTER DEFAULT
-  # PRIVILEGES を pgschema 側で宣言するため、ここでは発行しない。false のアプリは
-  # 従来通り NixOS 側で GRANT ... ON ALL TABLES 等を付与する fallback パスを通る。
+  #
+  # ここで発行するのは「どの table があるかに依存しない」ものだけに限る。
+  # per-table GRANT と ALTER DEFAULT PRIVILEGES は発行しない。撒くと pgschema に
+  # 毎回 REVOKE され、次の activation で復活する振動になるため。
   systemd.services.postgresql-app-credentials = {
     after = [ "postgresql.service" "postgresql-setup.service" ];
     requires = [ "postgresql.service" "postgresql-setup.service" ];
@@ -95,26 +108,15 @@ in
       ExecStart = pkgs.writeShellScript "postgresql-app-credentials" (
         lib.concatMapStringsSep "\n" (app: let
           psql = "${config.services.postgresql.package}/bin/psql";
-          db = app.name;
-          owner = app.name;
-          appUser = "${app.name}_app";
-          # per-table / ALTER DEFAULT PRIVILEGES を pgschema 管理に委ねるか
-          pgschemaManaged = app.pgschemaManagesGrants or false;
-          legacyTableGrants = lib.optionalString (!pgschemaManaged) ''
-            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO ${appUser};
-            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO ${appUser};
-            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO ${appUser};
-            ALTER DEFAULT PRIVILEGES FOR ROLE ${owner} IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO ${appUser};
-          '';
+          appUser = "${app}_app";
         in ''
-          OWNER_PW=$(cat ${config.age.secrets."db-password-${app.name}".path})
-          APP_PW=$(cat ${config.age.secrets."db-password-${app.name}_app".path})
-          ${psql} -d ${db} <<SQL
-            ALTER USER ${owner} WITH PASSWORD '$OWNER_PW';
+          OWNER_PW=$(cat ${config.age.secrets."db-password-${app}".path})
+          APP_PW=$(cat ${config.age.secrets."db-password-${app}_app".path})
+          ${psql} -d ${app} <<SQL
+            ALTER USER ${app} WITH PASSWORD '$OWNER_PW';
             ALTER USER ${appUser} WITH PASSWORD '$APP_PW';
-            GRANT CONNECT ON DATABASE ${db} TO ${appUser};
+            GRANT CONNECT ON DATABASE ${app} TO ${appUser};
             GRANT USAGE ON SCHEMA public TO ${appUser};
-            ${legacyTableGrants}
           SQL
         '') dbApps
       );
