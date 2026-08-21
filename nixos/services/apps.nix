@@ -191,7 +191,7 @@ ${lib.concatStringsSep "\n" (lib.mapAttrsToList (k: v: "      Secret=${v},type=e
   # そのまま渡す想定で、job の終了とともに失効するため VPS 側に長期の
   # 資格情報を置かずに済む。authfile は tmpfs に置き、使用後に消す。
   mkDeployScript = name: app:
-    pkgs.writeShellScriptBin "app-deploy" ''
+    pkgs.writeShellScript "app-deploy-${name}" ''
       set -euo pipefail
 
       if [ $# -ne 1 ]; then
@@ -395,7 +395,28 @@ in
   systemd.services = lib.mapAttrs' (name: app:
     lib.nameValuePair "${name}-secrets" (mkSecretLinkService name app)) apps;
 
-  environment.systemPackages = lib.mapAttrsToList mkDeployScript apps;
+  # deploy ユーザが実行する入口。
+  #
+  # アプリごとに writeShellScriptBin "app-deploy" を作ると、どれも /bin/app-deploy
+  # を提供するため environment.systemPackages 上で衝突し、PATH ではどれか 1 つだけが
+  # 勝つ。実際 template のデプロイが StreamerPost の image を pull しようとして
+  # 失敗した。
+  #
+  # 単一の app-deploy にして、呼び出しユーザで実体へ振り分ける。ssh 側のコマンドは
+  # どのアプリでも "app-deploy <sha>" のままでよい。
+  environment.systemPackages = [
+    (pkgs.writeShellScriptBin "app-deploy" ''
+      set -euo pipefail
+      case "$(${pkgs.coreutils}/bin/id -un)" in
+      ${lib.concatStringsSep "\n" (lib.mapAttrsToList (name: app: ''
+        ${deployUser name}) exec ${mkDeployScript name app} "$@" ;;'') apps)}
+        *)
+          echo "app-deploy: $(${pkgs.coreutils}/bin/id -un) に対応するアプリがありません" >&2
+          exit 1
+          ;;
+      esac
+    '')
+  ];
 
   # opkssh の認可。アプリ repo の main への push だけを、その deploy ユーザとして
   # 受け付ける。
