@@ -194,6 +194,10 @@ let
 
   deployUser = name: "deploy-${name}";
 
+  # deploy ユーザのグループ番号。uid の帯 (982-988) は他のシステムユーザと
+  # 隣接していて衝突したので、空いている 5000 番台へ移す。
+  deployGID = app: 5000 + (app.uid - 982);
+
   # 他所 (services/postgresql.nix) で定義済みの secret。ここでは group/mode を
   # 上書きするだけにする。
   sharedSecrets = app:
@@ -407,8 +411,20 @@ in
       shell = pkgs.bashInteractive;
     }) apps;
 
+  # gid は uid とは別の帯から取る。
+  #
+  # gid = uid にしていたところ、他のユーザと番号が重なってグループが共有され、
+  # deploy-web が template の DB パスワードを読める状態になっていた
+  # (secret を 0440 root:deploy-template にしているため)。
+  #
+  # 番号を後から変えることもできない。NixOS は既存グループの gid 変更を
+  # "not applying GID change" として拒否し、そのあと switch 自体が
+  # "Failed to get GID for yuniruyuni" で失敗する (2026-08-22 に発生)。
+  #
+  # 5000 番台は空いているので、そこを deploy ユーザ専用にする。uid は据え置く。
+  # 変えるとファイルの所有者がずれるため。
   users.groups = lib.mapAttrs' (name: app:
-    lib.nameValuePair (deployUser name) { gid = app.uid; }) apps;
+    lib.nameValuePair (deployUser name) { gid = deployGID app; }) apps;
 
   # DB パスワードは postgres (postgresql-app-credentials が User=postgres で読む) と
   # deploy ユーザの両方が読む必要があるので、group を広げる。
