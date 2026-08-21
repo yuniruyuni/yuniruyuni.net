@@ -97,11 +97,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
         hostname = "db.${var.zone_name}"
         service  = "tcp://localhost:5432"
       },
-      # template。向き先は HAProxy の frontend で、その裏に blue/green の
-      # コンテナがいる (nixos/services/apps.nix)。
+      # template。yunirun 管理下の HAProxy の frontend を向く
+      # (services/yunirun.nix)。旧 apps.nix 側の 8100 からの切り替え。
       {
         hostname = "template.${var.zone_name}"
-        service  = "http://localhost:8100"
+        service  = "http://localhost:8200"
       },
       # StreamerPost。同じく HAProxy の frontend を向く。
       {
