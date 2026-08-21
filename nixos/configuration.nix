@@ -51,9 +51,14 @@
     isNormalUser = true;
     description = "yuniruyuni";
     extraGroups = [ "wheel" "podman" "incus-admin" ];
+    # 個人端末からの手動操作・フル再セットアップ用。
+    #
+    # GitHub Actions からのデプロイはここではなく opkssh (services/opkssh.nix) が
+    # 発行する短命証明書で行う。ここに残っている鍵は、opkssh や sshd を壊す変更を
+    # 入れてしまったときの復旧経路でもあるため、両方を同時に失わないよう
+    # 個人鍵は必ず残す。
     openssh.authorizedKeys.keys = [
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINNgQ6u084ZWWEpXB/ikcbWOn3xRPNjzPMwOzHsYj458 yuniruyuni@MacBook-Air"
-      "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC6/vedtV7hyu88uHVfwZpm4w2KPYgZqZkmBTKBcnwvP github-actions@infrastructure"
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICzxszhOK9EyGC/PJr7Wn/BjDHU02b2F1j8etTbSak4l yuniruyuni@WSL"
     ];
   };
