@@ -20,6 +20,7 @@
     ./services/postgresql.nix
     ./services/postgresql-backup.nix
     ./services/swap.nix
+    ./services/yunirun.nix
   ];
 
   # Boot configuration
