@@ -38,21 +38,15 @@
    - GCE tunnel config に hostname が追加される。
    - DB アプリの場合は Secret Manager secret と IAM binding が追加される。
 
-5. アプリ固有の runtime secret が必要な場合は `gcp.tf` の `local.runtime_secrets` に追加する。
+5. アプリ固有の runtime secret が必要な場合。
 
-   ```hcl
-   new_app_api_key = {
-     secret_id = "new-app-api-key"
-     service   = "new_app"
-   }
-   ```
+   **VPS 上のアプリ (推奨)**: `nixos/secrets/` に agenix secret を作り、
+   `nixos/services/apps.nix` の `envSecrets` に `環境変数名 = secret 名` を書く。
+   値は podman secret 経由で実行時に渡り、ディスクにも unit ファイルにも現れない。
 
-   Terraform は Secret Manager の secret resource と Cloud Run service account への
-   `secretAccessor` だけを管理する。secret value は Terraform state に入れず、
-   手動で version を投入する。
-
-   Browser session や overlay URL token のような app runtime secret も同じ
-   `local.runtime_secrets` に追加する。
+   Cloud Run 向けに Terraform が Secret Manager の secret を作る仕組み
+   (`local.runtime_secrets`) は 2026-08-21 に削除した。唯一の利用者だった
+   StreamerPost が VPS へ移ったため。
 
 ## NixOS / PostgreSQL 側
 
