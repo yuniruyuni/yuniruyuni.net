@@ -9,9 +9,16 @@
       url = "github:ryantm/agenix";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    # デプロイシステム。NixOS には依存しない独立したツールで、ここでは
+    # 設置と設定を行うモジュールだけを取り込む。
+    yunirun = {
+      url = "github:yuniruyuni/yunirun";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, nixpkgs, agenix, ... }: {
+  outputs = { self, nixpkgs, agenix, yunirun, ... }: {
     nixosConfigurations.vps = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
@@ -23,6 +30,9 @@
 
         # Agenix module for secrets
         agenix.nixosModules.default
+
+        # yunirun
+        yunirun.nixosModules.default
         ({ pkgs, ... }: {
           # Agenix configuration
           # Use converted age key (generated from SSH host key via ssh-to-age)
