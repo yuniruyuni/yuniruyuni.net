@@ -39,6 +39,22 @@
             '';
             deps = [ ];
           };
+
+          # agenixInstall はこの鍵で復号するので、必ず agenixKey の後に走らせる。
+          #
+          # 既定では順序制約が無く、実際に activate 上では agenixInstall が
+          # 59 行目、agenixKey が 538 行目という逆順に並んでいた。鍵が既に
+          # 存在する平常時は表面化しないが、VPS をフル再構築したときに
+          # 初回 activation で全 secret の復号に失敗し、2 回目でようやく
+          # 通るという挙動になる。DR 経路で踏むので順序を固定する。
+          #
+          # なお /etc/ssh/ssh_host_ed25519_key 自体は sshd の起動時に作られる
+          # ため、本当に何も無い状態からでは初回 activation では鍵を作れない。
+          # そもそも新しく生成したホスト鍵では既存の secret を復号できない
+          # (secrets.nix の vps 受信者と一致しない) ので、フル再構築時は
+          # ホスト鍵を復元するか 1Password の鍵で rekey する必要がある。
+          # この順序修正が効くのは「ホスト鍵を復元した後の初回 switch」である。
+          system.activationScripts.agenixInstall.deps = [ "agenixKey" ];
         })
 
         # Secrets configuration
