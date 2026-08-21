@@ -32,7 +32,6 @@ yuniruyuni.net のインフラストラクチャを管理するリポジトリ�
 | `GCP_SERVICE_ACCOUNT` | `terraform output ci_plan_service_account` / `ci_apply_service_account` | plan SA (`terraform-github-plan`) | apply SA (`terraform-github`) |
 | `VPS_IP_ADDRESS` | VPSのIPアドレス | 共通値 | 共通値 |
 | `GCP_PROJECT_ID` | GCPプロジェクトID | 共通値 | 共通値 |
-| `SSH_PRIVATE_KEY` | VPS SSH秘密鍵 (Ed25519) | — | 設定 |
 
 ## CI/CD
 

@@ -3,17 +3,17 @@
 # GitHub Actions の OIDC トークンから短命の SSH 証明書を発行させ、長期の SSH
 # 秘密鍵を GitHub secrets に置かずにデプロイできるようにする。
 #
-# 現状 apply-nixos.yml は secrets.SSH_PRIVATE_KEY という長期鍵を使っており、
-# これは漏れても失効させるまで有効なままで、しかも wheel + passwordless sudo の
-# yuniruyuni として着地する。アプリ側リポジトリにも同じ経路を増やすのは避けたい。
+# もともと apply-nixos.yml は secrets.SSH_PRIVATE_KEY という長期鍵を使っていた。
+# 漏れても失効させるまで有効なままで、しかも wheel + passwordless sudo の
+# yuniruyuni として着地する。アプリ側リポジトリにも同じ経路を増やしたくないため
+# 置き換えた。長期鍵は 2026-08-21 に廃止済み。
 #
 # opkssh は CA 秘密鍵を持たない点が自前実装 (oidc-ssh-ca) との違いで、
 # 守るべき鍵が増えない。証明書に PK Token を載せ、検証側は OP の署名を辿る。
 #
-# 導入は段階的に行う。この時点では authorizedKeysCommand が増えるだけで、
-# 既存の authorizedKeys による鍵認証はそのまま並存する (sshd は
-# AuthorizedKeysFile と AuthorizedKeysCommand の両方を参照する)。
-# そのため万一 opkssh が動かなくてもアクセスを失わない。
+# sshd は AuthorizedKeysFile と AuthorizedKeysCommand の両方を参照するため、
+# configuration.nix に残した個人鍵での認証と並存する。opkssh や sshd を壊す変更を
+# 入れてしまったときは個人鍵で入って復旧できる。
 
 { pkgs, ... }:
 
@@ -68,15 +68,6 @@
       {
         user = "yuniruyuni";
         principal = "repo:yuniruyuni/yuniruyuni.net:environment:apply";
-        issuer = "https://token.actions.githubusercontent.com";
-      }
-
-      # 疎通確認用 (verify-opkssh.yml)。こちらは environment を使わないので
-      # ref 形式になる。apply-nixos.yml の移行が済んだら
-      # verify-opkssh.yml ごと削除する。
-      {
-        user = "yuniruyuni";
-        principal = "repo:yuniruyuni/yuniruyuni.net:ref:refs/heads/main";
         issuer = "https://token.actions.githubusercontent.com";
       }
     ];

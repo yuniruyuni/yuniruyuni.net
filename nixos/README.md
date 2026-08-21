@@ -44,11 +44,15 @@ nixos/
 
 `main` ブランチの `nixos/` ディレクトリに変更がプッシュされると、GitHub Actions が自動的に VPS にデプロイします。
 
-### 必要な GitHub Secrets
+### 認証
 
-| Secret | 説明 |
-|--------|------|
-| `SSH_PRIVATE_KEY` | VPS への SSH 秘密鍵（ed25519） |
+長期の SSH 秘密鍵は使いません。GitHub Actions は OIDC トークンから
+[opkssh](https://github.com/openpubkey/opkssh) で短命の SSH 証明書を発行して接続します
+（設定は `services/opkssh.nix`）。そのため deploy 用の GitHub Secret はありません。
+
+ワークフロー側に `id-token: write` 権限が必要です。`apply-nixos.yml` の deploy job は
+`environment: apply` を使うため、VPS 側で認可する identity は
+`repo:yuniruyuni/yuniruyuni.net:environment:apply` になります（`ref:` 形式ではありません）。
 
 ## 手動デプロイ
 
@@ -122,16 +126,15 @@ nixos-install --flake .#vps
 reboot
 ```
 
-### 4. GitHub Secrets の設定
+### 4. デプロイ経路の確認
 
-1. SSH キーペアを生成:
-   ```bash
-   ssh-keygen -t ed25519 -f vps-deploy-key -N ""
-   ```
+GitHub Actions 用の鍵を作る必要はありません。`services/opkssh.nix` の
+`authorizations` に対象リポジトリの identity が入っていれば、Actions は
+OIDC で発行した短命証明書で接続できます。
 
-2. 公開鍵を VPS の `~/.ssh/authorized_keys` に追加
-
-3. 秘密鍵を GitHub Secrets `SSH_PRIVATE_KEY` に設定
+手元の端末から入るための公開鍵は `configuration.nix` の
+`openssh.authorizedKeys.keys` に追加します。これは opkssh を壊したときの
+復旧経路も兼ねるので、最低 1 本は必ず残してください。
 
 ## トラブルシューティング
 
