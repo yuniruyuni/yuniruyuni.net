@@ -34,6 +34,9 @@ locals {
     # 向き先は HAProxy の frontend で、その裏に blue/green のコンテナがいる。
     template = { name = "template", type = "CNAME", target = "tunnel_main", proxied = true }
 
+    # StreamerPost も VPS へ移設済み。
+    post = { name = "post", type = "CNAME", target = "tunnel_main", proxied = true }
+
     # GCE Tunnel (CNAME to gce tunnel)
     # Root domain uses CNAME flattening (Cloudflare feature)
     root     = { name = var.zone_name, type = "CNAME", target = "tunnel_gce", proxied = true }
@@ -41,7 +44,6 @@ locals {
     costume  = { name = "costume", type = "CNAME", target = "tunnel_gce", proxied = true }
     lom      = { name = "lom", type = "CNAME", target = "tunnel_gce", proxied = true }
     fighter  = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
-    post     = { name = "post", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
 }
 
@@ -98,6 +100,11 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "template.${var.zone_name}"
         service  = "http://localhost:8100"
+      },
+      # StreamerPost。同じく HAProxy の frontend を向く。
+      {
+        hostname = "post.${var.zone_name}"
+        service  = "http://localhost:8110"
       },
       # Catch-all (required)
       {
