@@ -190,6 +190,13 @@ let
     # user@<uid>.service が起動時に立ち上がり、そこで作られる。
     after = [ "user@${toString app.uid}.service" ];
     wants = [ "user@${toString app.uid}.service" ];
+    # rootless podman は subuid/subgid を張るのに newuidmap/newgidmap を呼ぶ。
+    # これは setuid が要るので /run/wrappers/bin に置かれているが、system
+    # サービスの既定 PATH には含まれず
+    #   command required for rootless mode with multiple IDs:
+    #   exec: "newuidmap": executable file not found in $PATH
+    # で落ちる。
+    path = [ "/run/wrappers" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
