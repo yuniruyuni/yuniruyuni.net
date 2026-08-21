@@ -39,6 +39,12 @@
 
 { pkgs, lib, ... }:
 
+# NOTE: 各スクリプトは podman から呼ばれる。podman が渡す PATH は最小限で
+# coreutils すら入っていないため、先頭で明示的に PATH を通す必要がある。
+# これを怠ると lookup が
+#   podman-secret-lookup: line 3: cat: command not found
+# で失敗し、コンテナ起動が "no such secret" になる。
+
 let
   # 対応表の置き場所。秘密ではなく名前しか入らない。
   mapDir = "$HOME/.local/state/podman-secret-names";
@@ -57,6 +63,7 @@ let
 
   lookupScript = pkgs.writeShellScript "podman-secret-lookup" ''
     set -eu
+    export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
     name=$(cat "${mapDir}/$SECRET_ID")
     ${validateName}
     exec cat "/run/agenix/$name"
@@ -65,6 +72,7 @@ let
   # 作成時の stdin には秘密ではなく「参照先 agenix secret の名前」が来る。
   storeScript = pkgs.writeShellScript "podman-secret-store" ''
     set -eu
+    export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
     mkdir -p "${mapDir}"
     name=$(cat)
     ${validateName}
@@ -73,11 +81,13 @@ let
 
   deleteScript = pkgs.writeShellScript "podman-secret-delete" ''
     set -eu
+    export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
     rm -f "${mapDir}/$SECRET_ID"
   '';
 
   listScript = pkgs.writeShellScript "podman-secret-list" ''
     set -eu
+    export PATH=${lib.makeBinPath [ pkgs.coreutils ]}
     ls "${mapDir}" 2>/dev/null || true
   '';
 in

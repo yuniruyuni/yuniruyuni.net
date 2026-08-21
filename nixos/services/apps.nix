@@ -127,7 +127,13 @@ let
           ;;
       esac
 
-      runtime_dir="''${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+      # ssh 経由の非対話セッションでは XDG_RUNTIME_DIR が設定されない。
+      # 無いと systemctl --user が
+      #   Failed to connect to user scope bus via local transport:
+      #   $DBUS_SESSION_BUS_ADDRESS and $XDG_RUNTIME_DIR not defined
+      # で失敗する。uid は表で固定してあるので補える。
+      export XDG_RUNTIME_DIR="''${XDG_RUNTIME_DIR:-/run/user/${toString app.uid}}"
+      runtime_dir="$XDG_RUNTIME_DIR"
       authfile="$runtime_dir/ghcr-auth.json"
       cleanup() { rm -f "$authfile"; }
       trap cleanup EXIT
