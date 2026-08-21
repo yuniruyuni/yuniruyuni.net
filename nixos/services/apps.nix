@@ -480,7 +480,12 @@ in
           default_backend ${name}
 
         backend ${name}
-          option httpchk GET ${app.healthPath}
+          # Host ヘッダを明示的に送る。option httpchk の既定は HTTP/1.0 かつ
+          # Host 無しで、Host によって振り分けるアプリはそれを 404 にする。
+          # 実際 web がこれで DOWN のままだった (curl では 200 に見えるため
+          # 原因が分かりにくい)。
+          option httpchk
+          http-check send meth GET uri ${app.healthPath} ver HTTP/1.1 hdr Host localhost
           http-check expect status 200
       '' + lib.concatMapStringsSep "\n" (color:
         "    server ${color} 127.0.0.1:${toString app.colorPorts.${color}} check inter 3s fall 2 rise 3"
