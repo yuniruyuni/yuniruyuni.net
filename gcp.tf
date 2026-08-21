@@ -35,9 +35,7 @@ locals {
     lom                  = { name = "lom", hostname = "lom" }
     stream_tag_inventory = { name = "stream-tag-inventory", hostname = "tags" }
     web                  = { name = "web", hostname = "" }
-    template             = { name = "template", hostname = "template" }
     fighter              = { name = "fighter", hostname = "fighter" }
-    streamer_post        = { name = "streamer-post", hostname = "post" }
   }
 
   # Cloud Run services are invoked through the GCE tunnel gateway. The services
@@ -54,15 +52,9 @@ locals {
     stream_tag_inventory = {
       service_name = "stream-tag-inventory"
     }
-    template = {
-      service_name = "template"
-    }
     # DB access は将来の拡張用にプロビジョニングのみ（アプリはクエリしない）
     fighter = {
       service_name = "fighter"
-    }
-    streamer_post = {
-      service_name = "streamer-post"
     }
   }
 
@@ -73,31 +65,6 @@ locals {
     "roles/secretmanager.viewer",
   ])
 
-  # Runtime secrets that are created in Secret Manager by Terraform but whose
-  # values are inserted manually. Values are intentionally not in Terraform
-  # state. Each listed Cloud Run service account receives secretAccessor.
-  # 値は Terraform state に入れず手動で version を投入する (docs/add-app.md)。
-  runtime_secrets = {
-    # StreamerPost。1 設置 = 1 配信者で運用するため、許可するメールアドレスも
-    # 秘匿情報として扱う (public repo に個人のアドレスを置かない)。
-    # 詳細は StreamerPost の docs/single-tenant.md
-    streamer_post_better_auth_secret = {
-      secret_id = "streamer-post-better-auth-secret"
-      service   = "streamer_post"
-    }
-    streamer_post_allowed_emails = {
-      secret_id = "streamer-post-allowed-emails"
-      service   = "streamer_post"
-    }
-    streamer_post_twitch_client_secret = {
-      secret_id = "streamer-post-twitch-client-secret"
-      service   = "streamer_post"
-    }
-    streamer_post_google_client_secret = {
-      secret_id = "streamer-post-google-client-secret"
-      service   = "streamer_post"
-    }
-  }
 }
 
 # =============================================================================
@@ -235,7 +202,7 @@ resource "google_project_iam_member" "tunnel_gateway_logwriter" {
 # Legacy default Compute service account
 # -----------------------------------------------------------------------------
 #
-# costume / lom / web / stream-tag-inventory / template とその migration job は
+# costume / lom / web / stream-tag-inventory とその migration job は
 # この 1 つの ID で動く。GCP は Compute Engine API 有効化時にこの SA へ
 # roles/editor を自動付与するが、それは剥がしてある (2026-08-16)。
 #
@@ -515,24 +482,7 @@ resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor
   member    = "serviceAccount:${local.legacy_default_compute_service_account}"
 }
 
-# =============================================================================
-# Secret Manager (app runtime secrets; values managed manually)
-# =============================================================================
-
-resource "google_secret_manager_secret" "runtime" {
-  for_each  = local.runtime_secrets
-  secret_id = each.value.secret_id
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.required]
-}
-
-resource "google_secret_manager_secret_iam_member" "runtime_accessor" {
-  for_each  = local.runtime_secrets
-  secret_id = google_secret_manager_secret.runtime[each.key].id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_cloud_run_service.services[each.value.service].template[0].spec[0].service_account_name}"
-}
+# NOTE: アプリ固有の runtime secret を Terraform で作る仕組み (local.runtime_secrets と
+# google_secret_manager_secret.runtime) は 2026-08-21 に削除した。唯一の利用者だった
+# StreamerPost が VPS へ移り、秘密は agenix が持つようになったため。
+# VPS 上のアプリで秘密が要る場合は nixos/services/apps.nix の envSecrets を使う。
