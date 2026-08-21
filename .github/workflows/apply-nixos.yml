@@ -17,6 +17,13 @@ jobs:
     name: Deploy NixOS Configuration
     runs-on: ubuntu-latest
     environment: apply
+    permissions:
+      # opkssh が OIDC トークンを取得するのに必須。
+      # environment を使う job なので sub は
+      #   repo:yuniruyuni/yuniruyuni.net:environment:apply
+      # になる (ref 形式ではない)。
+      id-token: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -34,16 +41,25 @@ jobs:
           chmod +x /usr/local/bin/cloudflared
           cloudflared --version
 
-      - name: Setup SSH with cloudflared
+      - name: Install opkssh
+        # 長期の SSH 秘密鍵の代わりに、GitHub Actions の OIDC トークンから
+        # 短命の SSH 証明書を発行する。
+        #
+        # バージョンは VPS 側 (nixos/pkgs/opkssh.nix) と揃える。v0.10.0 は
+        # 証明書の principals を空にするため OpenSSH 10 に拒否される。
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          OPKSSH_VERSION: v0.16.0
+          OPKSSH_SHA256: c018c3e7baf98612b923e742dd87be38650bf61e3b755fb2bc90de177568b1bf
+        run: |
+          curl -sSLf "https://github.com/openpubkey/opkssh/releases/download/${OPKSSH_VERSION}/opkssh-linux-amd64" -o /usr/local/bin/opkssh
+          echo "${OPKSSH_SHA256}  /usr/local/bin/opkssh" | sha256sum -c -
+          chmod +x /usr/local/bin/opkssh
+          opkssh --version
+
+      - name: Setup SSH with cloudflared
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-
-          # SSH private key for VPS authentication
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
 
           # Known hosts from repository
           cp ssh/known_hosts ~/.ssh/known_hosts
@@ -59,15 +75,18 @@ jobs:
 
       - name: Test SSH connection
         run: |
+          opkssh login github
           ssh -o ConnectTimeout=10 yuniruyuni@ssh.yuniruyuni.net "echo 'SSH connection successful'"
 
       - name: Copy NixOS configuration to VPS
         run: |
+          opkssh login github
           ssh yuniruyuni@ssh.yuniruyuni.net "mkdir -p /tmp/nixos-config"
           scp -r nixos/* yuniruyuni@ssh.yuniruyuni.net:/tmp/nixos-config/
 
       - name: Deploy NixOS configuration
         run: |
+          opkssh login github
           ssh yuniruyuni@ssh.yuniruyuni.net "DEPLOY_UNIT='nixos-github-deploy-${GITHUB_RUN_ID}' bash -s" << 'DEPLOY'
           set -euo pipefail
 
@@ -119,6 +138,17 @@ jobs:
         run: |
           DEPLOY_UNIT="nixos-github-deploy-${GITHUB_RUN_ID}"
 
+          # 証明書の寿命は providers の lifetime = "oidc"、すなわち GitHub の
+          # ID Token の exp に従うので数分で切れる。このステップは最大で
+          # 90 回 x 20 秒 = 30 分回りうるため、途中で取り直す必要がある。
+          #
+          # ACTIONS_ID_TOKEN_REQUEST_* は job の実行中ずっと有効なので、
+          # login を呼び直せば新しいトークンと証明書が得られる。
+          refresh_cert() {
+            opkssh login github > /dev/null
+          }
+          refresh_cert
+
           ssh_retry() {
             local attempt
             for attempt in $(seq 1 90); do
@@ -127,6 +157,7 @@ jobs:
               fi
               echo "SSH attempt ${attempt} failed; retrying in 20 seconds..."
               sleep 20
+              refresh_cert
             done
             return 1
           }
@@ -134,6 +165,10 @@ jobs:
           deploy_completed=0
 
           for attempt in $(seq 1 90); do
+            # 5 回ごと (約 100 秒ごと) に証明書を取り直す。
+            if [ "$(( (attempt - 1) % 5 ))" -eq 0 ]; then
+              refresh_cert
+            fi
             set +e
             output="$(ssh -o ConnectTimeout=20 yuniruyuni@ssh.yuniruyuni.net "DEPLOY_UNIT='$DEPLOY_UNIT' bash -s" << 'STATUS'
           set -euo pipefail
