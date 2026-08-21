@@ -186,17 +186,22 @@ let
   mkSecretLinkService = name: app: {
     description = "Link agenix secrets into podman for ${name}";
     wantedBy = [ "multi-user.target" ];
-    after = [ "network-online.target" ];
+    # rootless podman は /run/user/<uid> を要求する。linger を有効にしてあるので
+    # user@<uid>.service が起動時に立ち上がり、そこで作られる。
+    after = [ "user@${toString app.uid}.service" ];
+    wants = [ "user@${toString app.uid}.service" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       User = deployUser name;
       Group = deployUser name;
-      # uid は動的に割り当てられるため eval 時には確定しない。systemd の
-      # 指定子 %U を使って実行時に解決させる。
+      # 指定子 %U は使えない。system manager 上では User= を拾わず 0 に展開され、
+      # podman が /run/user/0 を見に行って "Failed to obtain podman
+      # configuration: lstat /run/user/0: no such file or directory" で落ちる。
+      # uid は表で固定してあるのでそのまま埋める。
       Environment = [
         "HOME=/var/lib/${deployUser name}"
-        "XDG_RUNTIME_DIR=/run/user/%U"
+        "XDG_RUNTIME_DIR=/run/user/${toString app.uid}"
       ];
       ExecStart = "${mkSecretLinkScript name app}";
     };
