@@ -58,6 +58,18 @@ let
         user = "template_app";
         name = "template";
         secret = "db-password-template_app";
+
+        # スキーマ migration。持たないアプリは省略できる。
+        #
+        # owner ロール (DDL) を使う点がアプリ本体との違い。つまり deploy ユーザは
+        # owner のパスワードも読めることになるが、これは「デプロイできる主体は
+        # DDL を実行できる」という性質であって Cloud Run でも同じ (deploy SA が
+        # migration job を実行できる)。
+        migration = {
+          image = "ghcr.io/yuniruyuni/template-migration";
+          user = "template";
+          secret = "db-password-template";
+        };
       };
     };
   };
@@ -65,6 +77,10 @@ let
   colors = [ "blue" "green" ];
 
   deployUser = name: "deploy-${name}";
+
+  # そのアプリの deploy ユーザが読む必要のある agenix secret。
+  appSecrets = app:
+    [ app.db.secret ] ++ lib.optional (app.db ? migration) app.db.migration.secret;
 
   # コンテナが参照するローカルタグ。app-deploy が pull した image をこの名前に
   # 付け替えることで、unit 側は静的なまま中身だけ入れ替わる。
@@ -147,7 +163,29 @@ let
       echo "==> pulling ${app.image}:$tag"
       ${pkgs.podman}/bin/podman pull --authfile "$authfile" "${app.image}:$tag"
       ${pkgs.podman}/bin/podman tag "${app.image}:$tag" "${localTag name}"
+${lib.optionalString (app.db ? migration) ''
+      # スキーマ migration を blue/green より前に一度だけ流す。
+      #
+      # set -e により、失敗した時点でここで止まり blue/green には触れない。
+      # 逆に成功した場合は、旧コードが動いたままスキーマだけが進む区間ができる。
+      # つまりスキーマ変更は新旧どちらのコードとも互換である必要がある
+      # (expand/contract)。これは Cloud Run でも同じ制約。
+      #
+      # pgschema は宣言的で冪等なので、二重に流れても結果は変わらない。
+      echo "==> pulling ${app.db.migration.image}:$tag"
+      ${pkgs.podman}/bin/podman pull --authfile "$authfile" "${app.db.migration.image}:$tag"
 
+      echo "==> applying schema migration"
+      ${pkgs.coreutils}/bin/timeout 600 \
+        ${pkgs.podman}/bin/podman run --rm \
+          --secret ${app.db.migration.secret},type=env,target=DB_PASSWORD \
+          --volume /run/postgresql:/run/postgresql \
+          --env PGHOST=/run/postgresql \
+          --env PGPORT=5432 \
+          --env DB_USER=${app.db.migration.user} \
+          --env DB_NAME=${app.db.name} \
+          "${app.db.migration.image}:$tag"
+''}
       # blue/green を順に入れ替える。片方を落としている間はもう片方が
       # 受けるので、HAProxy 越しには停止しない。
       ${lib.concatMapStringsSep "\n" (color: ''
@@ -182,12 +220,13 @@ let
   #
   # systemd.user.services は全ユーザの systemd インスタンスに配られてしまうため
   # 使わない。User= を指定した system サービスにして deploy ユーザに限定する。
-  mkSecretLinkScript = name: app: pkgs.writeShellScript "link-${name}-secrets" ''
-    set -eu
-    ${pkgs.podman}/bin/podman secret rm ${app.db.secret} >/dev/null 2>&1 || true
-    printf '%s' '${app.db.secret}' \
-      | ${pkgs.podman}/bin/podman secret create ${app.db.secret} - >/dev/null
-  '';
+  mkSecretLinkScript = name: app: pkgs.writeShellScript "link-${name}-secrets" (
+    "set -eu\n" + lib.concatMapStringsSep "\n" (secret: ''
+      ${pkgs.podman}/bin/podman secret rm ${secret} >/dev/null 2>&1 || true
+      printf '%s' '${secret}' \
+        | ${pkgs.podman}/bin/podman secret create ${secret} - >/dev/null
+    '') (appSecrets app)
+  );
 
   mkSecretLinkService = name: app: {
     description = "Link agenix secrets into podman for ${name}";
@@ -248,11 +287,16 @@ in
 
   # DB パスワードは postgres (postgresql-app-credentials が User=postgres で読む) と
   # deploy ユーザの両方が読む必要があるので、group を広げる。
-  age.secrets = lib.mapAttrs' (name: app:
-    lib.nameValuePair app.db.secret {
-      group = lib.mkForce (deployUser name);
-      mode = lib.mkForce "0440";
-    }) apps;
+  # migration を持つアプリは owner 側のパスワードも対象になる。
+  age.secrets = lib.listToAttrs (lib.flatten (lib.mapAttrsToList (name: app:
+    map (secret: {
+      name = secret;
+      value = {
+        group = lib.mkForce (deployUser name);
+        mode = lib.mkForce "0440";
+      };
+    }) (appSecrets app)
+  ) apps));
 
   # Quadlet unit の置き場所。
   #
