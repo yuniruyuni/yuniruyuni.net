@@ -109,6 +109,36 @@ let
       healthPath = "/health";
     };
 
+    stream_tag_inventory = {
+      uid = 982;
+      repo = "yuniruyuni/StreamTagInventory";
+      image = "ghcr.io/yuniruyuni/stream-tag-inventory";
+      frontendPort = 8150;
+      colorPorts = { blue = 8151; green = 8152; };
+      healthPath = "/health";
+
+      env = {
+        # OAuth の client_id は仕様上公開値。
+        TWITCH_CLIENT_ID = "d2kz8x5se7k6b1n0picux0r7kaozi3";
+        APP_BASE_URL = "https://tags.yuniruyuni.net";
+      };
+
+      db = {
+        user = "stream_tag_inventory_app";
+        name = "stream_tag_inventory";
+        secret = "db-password-stream_tag_inventory_app";
+
+        migration = {
+          image = "ghcr.io/yuniruyuni/stream-tag-inventory-migration";
+          secret = "db-password-stream_tag_inventory";
+          env = {
+            DB_USER = "stream_tag_inventory";
+            DB_NAME = "stream_tag_inventory";
+          };
+        };
+      };
+    };
+
     streamer_post = {
       uid = 986;
 
