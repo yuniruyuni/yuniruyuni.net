@@ -45,7 +45,7 @@ locals {
     tags    = { name = "tags", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # GCE Tunnel (CNAME to gce tunnel)
-    fighter  = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
+    fighter = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
 }
 
