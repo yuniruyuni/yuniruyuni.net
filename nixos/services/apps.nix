@@ -36,6 +36,10 @@
 let
   apps = {
     template = {
+      # Quadlet の unit を /etc/containers/systemd/users/<uid>/ に置くため、
+      # uid は eval 時に確定している必要がある。動的割り当てだと使えない。
+      uid = 988;
+
       # opkssh の認可に使う。sub は repo:<repo>:ref:refs/heads/main になる。
       repo = "yuniruyuni/template";
       image = "ghcr.io/yuniruyuni/template";
@@ -200,9 +204,10 @@ let
 in
 {
   # deploy ユーザ。wheel には入れない = sudo を持たない。
-  users.users = lib.mapAttrs' (name: _:
+  users.users = lib.mapAttrs' (name: app:
     lib.nameValuePair (deployUser name) {
       isSystemUser = true;
+      uid = app.uid;
       group = deployUser name;
       home = "/var/lib/${deployUser name}";
       createHome = true;
@@ -214,7 +219,8 @@ in
       shell = pkgs.bashInteractive;
     }) apps;
 
-  users.groups = lib.mapAttrs' (name: _: lib.nameValuePair (deployUser name) { }) apps;
+  users.groups = lib.mapAttrs' (name: app:
+    lib.nameValuePair (deployUser name) { gid = app.uid; }) apps;
 
   # DB パスワードは postgres (postgresql-app-credentials が User=postgres で読む) と
   # deploy ユーザの両方が読む必要があるので、group を広げる。
@@ -224,13 +230,25 @@ in
       mode = lib.mkForce "0440";
     }) apps;
 
-  # Quadlet unit を deploy ユーザの探索パスへ置く。
-  systemd.tmpfiles.rules = lib.flatten (lib.mapAttrsToList (name: app:
-    [ "d /var/lib/${deployUser name}/.config/containers/systemd 0755 ${deployUser name} ${deployUser name} -" ]
-    ++ map (color:
-      "L+ /var/lib/${deployUser name}/.config/containers/systemd/${name}-${color}.container - - - - ${mkContainerFile name app color}"
-    ) colors
-  ) apps);
+  # Quadlet unit の置き場所。
+  #
+  # 当初は deploy ユーザのホーム (~/.config/containers/systemd) に置いたが、
+  # systemd-tmpfiles が中間ディレクトリを root 所有で作ってしまい、
+  #   Detected unsafe path transition /var/lib/deploy-template (owned by
+  #   deploy-template) → /var/lib/deploy-template/.config (owned by root)
+  # として以降のルールを拒否する。結果 podman も
+  #   path ".../.config" exists and it is not owned by the current user
+  # で起動できなかった。
+  #
+  # Quadlet は rootless でも /etc/containers/systemd/users/<uid>/ を探すので、
+  # そちらへ置く。root 所有のまま environment.etc で宣言でき、ホーム配下の
+  # 所有権を一切触らずに済む。
+  environment.etc = lib.listToAttrs (lib.flatten (lib.mapAttrsToList (name: app:
+    map (color: {
+      name = "containers/systemd/users/${toString app.uid}/${name}-${color}.container";
+      value = { source = mkContainerFile name app color; };
+    }) colors
+  ) apps));
 
   systemd.services = lib.mapAttrs' (name: app:
     lib.nameValuePair "${name}-secrets" (mkSecretLinkService name app)) apps;
