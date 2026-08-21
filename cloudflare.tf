@@ -37,12 +37,14 @@ locals {
     # StreamerPost も VPS へ移設済み。
     post = { name = "post", type = "CNAME", target = "tunnel_main", proxied = true }
 
+    # costume / lom / web も VPS へ移設済み。
+    # root は CNAME flattening でルートドメイン (yuniruyuni.net) を web に向ける。
+    costume = { name = "costume", type = "CNAME", target = "tunnel_main", proxied = true }
+    lom     = { name = "lom", type = "CNAME", target = "tunnel_main", proxied = true }
+    root    = { name = var.zone_name, type = "CNAME", target = "tunnel_main", proxied = true }
+
     # GCE Tunnel (CNAME to gce tunnel)
-    # Root domain uses CNAME flattening (Cloudflare feature)
-    root     = { name = var.zone_name, type = "CNAME", target = "tunnel_gce", proxied = true }
     tags     = { name = "tags", type = "CNAME", target = "tunnel_gce", proxied = true }
-    costume  = { name = "costume", type = "CNAME", target = "tunnel_gce", proxied = true }
-    lom      = { name = "lom", type = "CNAME", target = "tunnel_gce", proxied = true }
     fighter  = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
 }
@@ -105,6 +107,19 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "post.${var.zone_name}"
         service  = "http://localhost:8110"
+      },
+      {
+        hostname = "costume.${var.zone_name}"
+        service  = "http://localhost:8120"
+      },
+      {
+        hostname = "lom.${var.zone_name}"
+        service  = "http://localhost:8130"
+      },
+      # ルートドメイン (web)
+      {
+        hostname = var.zone_name
+        service  = "http://localhost:8140"
       },
       # Catch-all (required)
       {
