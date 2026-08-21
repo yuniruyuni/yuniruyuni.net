@@ -92,7 +92,17 @@ EOF'
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BACKUP_PREFIX="${staging_dir}/${container_name}-backup-$TIMESTAMP"
     BACKUP_FILE="$BACKUP_PREFIX.tar.gz"  # incus adds .tar.gz automatically
+    ENCRYPTED_FILE="$BACKUP_FILE.age"
     RCLONE_CONFIG="${rclone_config_path}"
+
+    # Remove staging files and the temporary image on every exit path. With
+    # `set -e` a mid-script failure used to skip the cleanup below and leave
+    # the *plaintext* export on disk indefinitely.
+    cleanup() {
+      rm -f "$BACKUP_FILE" "$ENCRYPTED_FILE"
+      incus image delete ${container_name}-backup-temp 2>/dev/null || true
+    }
+    trap cleanup EXIT
 
     echo "Starting backup of '${container_name}' container..."
 
@@ -115,7 +125,6 @@ EOF'
 
     # Encrypt backup before upload
     echo "Encrypting backup..."
-    ENCRYPTED_FILE="$BACKUP_FILE.age"
     ${pkgs.age}/bin/age -r "${age_recipient}" -o "$ENCRYPTED_FILE" "$BACKUP_FILE"
     rm -f "$BACKUP_FILE"
 
@@ -128,10 +137,8 @@ EOF'
     echo "Cleaning up old backups..."
     ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
       delete ${gdrive_remote}:${gdrive_path_incus}/ \
-      --min-age 7d
-
-    # Cleanup local temp file
-    rm -f "$ENCRYPTED_FILE"
+      --min-age 7d \
+      --drive-use-trash=false
 
     echo "Backup completed successfully!"
     echo "Uploaded: ${gdrive_remote}:${gdrive_path_incus}/$(basename $ENCRYPTED_FILE)"
@@ -221,13 +228,28 @@ EOF'
 
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     BACKUP_FILE="${staging_dir}/n8n-backup-$TIMESTAMP.tar.gz"
+    ENCRYPTED_FILE="$BACKUP_FILE.age"
     RCLONE_CONFIG="${rclone_config_path}"
+
+    # Remove staging files on every exit path, and make sure n8n is brought
+    # back up. With `set -e` a failure after the stop below (e.g. tar running
+    # out of disk) used to abort the script and leave n8n down indefinitely,
+    # as well as leaving the *plaintext* archive on disk.
+    N8N_STOPPED=0
+    cleanup() {
+      rm -f "$BACKUP_FILE" "$ENCRYPTED_FILE"
+      if [ "$N8N_STOPPED" -eq 1 ]; then
+        systemctl start podman-n8n || true
+      fi
+    }
+    trap cleanup EXIT
 
     echo "Starting backup of n8n data..."
 
     # Stop n8n for consistent backup
     echo "Stopping n8n..."
     systemctl stop podman-n8n || true
+    N8N_STOPPED=1
     sleep 2
 
     # Create backup
@@ -237,10 +259,10 @@ EOF'
     # Restart n8n
     echo "Restarting n8n..."
     systemctl start podman-n8n
+    N8N_STOPPED=0
 
     # Encrypt backup before upload
     echo "Encrypting backup..."
-    ENCRYPTED_FILE="$BACKUP_FILE.age"
     ${pkgs.age}/bin/age -r "${age_recipient}" -o "$ENCRYPTED_FILE" "$BACKUP_FILE"
     rm -f "$BACKUP_FILE"
 
@@ -253,10 +275,8 @@ EOF'
     echo "Cleaning up old backups..."
     ${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
       delete ${gdrive_remote}:${gdrive_path_n8n}/ \
-      --min-age 7d
-
-    # Cleanup local temp file
-    rm -f "$ENCRYPTED_FILE"
+      --min-age 7d \
+      --drive-use-trash=false
 
     echo "Backup completed successfully!"
     echo "Uploaded: ${gdrive_remote}:${gdrive_path_n8n}/$(basename $ENCRYPTED_FILE)"
