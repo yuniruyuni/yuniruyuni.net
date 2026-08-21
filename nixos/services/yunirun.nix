@@ -30,6 +30,13 @@
     # 検証中は別名にする。切り替え時に template へ改名する。
     apps = {
       template2 = "yuniruyuni/template";
+
+      # DB を持たない 3 つ。旧 apps.nix 側と並行して立ち上げ、動作を確認してから
+      # ingress を切り替える。名前に 2 を付けているのは、旧側と DB や unit 名を
+      # 共有しないため (この 3 つは DB を持たないが、unit 名は衝突する)。
+      costume2 = "yuniruyuni/costume";
+      lom2 = "yuniruyuni/LegendOfManaWeapon";
+      web2 = "yuniruyuni/web";
     };
   };
 }
