@@ -85,7 +85,8 @@
     "root": {
       "inputs": {
         "agenix": "agenix",
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "yunirun": "yunirun"
       }
     },
     "systems": {
@@ -100,6 +101,26 @@
       "original": {
         "owner": "nix-systems",
         "repo": "default",
+        "type": "github"
+      }
+    },
+    "yunirun": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1787311321,
+        "narHash": "sha256-dMyZhYVxAxzNF9EIES21YYt0W+oxnJV37UAh1Aki4RM=",
+        "owner": "yuniruyuni",
+        "repo": "yunirun",
+        "rev": "f96869331233d88699857fb79166f7727e2ed998",
+        "type": "github"
+      },
+      "original": {
+        "owner": "yuniruyuni",
+        "repo": "yunirun",
         "type": "github"
       }
     }
