@@ -30,7 +30,7 @@ locals {
     # PostgreSQL via VPS Tunnel (TCP proxied through Cloudflare)
     db = { name = "db", type = "CNAME", target = "tunnel_main", proxied = true }
 
-    # template は Cloud Run から VPS へ移設済み (nixos/services/apps.nix)。
+    # template は Cloud Run から VPS へ移設済み (nixos/services/yunirun.nix)。
     # 向き先は HAProxy の frontend で、その裏に blue/green のコンテナがいる。
     template = { name = "template", type = "CNAME", target = "tunnel_main", proxied = true }
 
@@ -45,7 +45,7 @@ locals {
     tags    = { name = "tags", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # GCE Tunnel (CNAME to gce tunnel)
-    fighter  = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
+    fighter = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
   }
 }
 
@@ -98,7 +98,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
         service  = "tcp://localhost:5432"
       },
       # template。yunirun 管理下の HAProxy の frontend を向く
-      # (services/yunirun.nix)。旧 apps.nix 側の 8100 からの切り替え。
+      # (services/yunirun.nix)。撤去した apps.nix 側の 8100 からの切り替え。
       {
         hostname = "template.${var.zone_name}"
         service  = "http://localhost:8200"
