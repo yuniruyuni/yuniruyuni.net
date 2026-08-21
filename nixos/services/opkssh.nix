@@ -56,9 +56,24 @@
     # tag デプロイや GitHub Environment を導入するとこの文字列が変わる
     # (environment を使うと sub は repo:OWNER/REPO:environment:NAME になる)。
     authorizations = [
-      # インフラ repo の deploy。着地先が yuniruyuni なのは nixos-rebuild switch に
-      # sudo が要るためで、現行の apply-nixos.yml と同じ権限に揃えている。
-      # アプリ側は権限を持たない専用ユーザへ着地させるので、この扱いはここだけ。
+      # インフラ repo の deploy (apply-nixos.yml)。着地先が yuniruyuni なのは
+      # nixos-rebuild switch に sudo が要るためで、現行の長期鍵と同じ権限に揃えて
+      # いる。アプリ側は権限を持たない専用ユーザへ着地させるので、この扱いはここだけ。
+      #
+      # environment:apply であって ref:refs/heads/main ではない点に注意。
+      # apply-nixos.yml の deploy job は environment: apply を指定しており、
+      # GitHub は environment を使う job の sub を
+      #   repo:OWNER/REPO:environment:NAME
+      # に変える (ref 形式にはならない)。
+      {
+        user = "yuniruyuni";
+        principal = "repo:yuniruyuni/yuniruyuni.net:environment:apply";
+        issuer = "https://token.actions.githubusercontent.com";
+      }
+
+      # 疎通確認用 (verify-opkssh.yml)。こちらは environment を使わないので
+      # ref 形式になる。apply-nixos.yml の移行が済んだら
+      # verify-opkssh.yml ごと削除する。
       {
         user = "yuniruyuni";
         principal = "repo:yuniruyuni/yuniruyuni.net:ref:refs/heads/main";
