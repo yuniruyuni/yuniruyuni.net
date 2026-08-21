@@ -30,6 +30,11 @@ locals {
     # PostgreSQL via VPS Tunnel (TCP proxied through Cloudflare)
     db = { name = "db", type = "CNAME", target = "tunnel_main", proxied = true }
 
+    # template の VPS 版。Cloud Run 版 (template) と並行稼働させて検証するための
+    # 一時的なホスト名。切り替えが済んだら template 側の target を tunnel_main へ
+    # 変更し、こちらは削除する。
+    template_vps = { name = "template-vps", type = "CNAME", target = "tunnel_main", proxied = true }
+
     # GCE Tunnel (CNAME to gce tunnel)
     # Root domain uses CNAME flattening (Cloudflare feature)
     root     = { name = var.zone_name, type = "CNAME", target = "tunnel_gce", proxied = true }
@@ -89,6 +94,12 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "db.${var.zone_name}"
         service  = "tcp://localhost:5432"
+      },
+      # template (VPS 版)。向き先は HAProxy の frontend で、その裏に blue/green の
+      # コンテナがいる (nixos/services/apps.nix)。
+      {
+        hostname = "template-vps.${var.zone_name}"
+        service  = "http://localhost:8100"
       },
       # Catch-all (required)
       {
