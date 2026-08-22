@@ -5,7 +5,6 @@ on:
     paths:
       - '*.tf'
       - '.terraform.lock.hcl'
-      - 'scripts/cloudflared-boot.sh.tftpl'
       - '.github/workflows/*-terraform*.yml'
   push:
     branches:
@@ -13,7 +12,6 @@ on:
     paths:
       - '*.tf'
       - '.terraform.lock.hcl'
-      - 'scripts/cloudflared-boot.sh.tftpl'
       - '.github/workflows/*-terraform*.yml'
 
 jobs:

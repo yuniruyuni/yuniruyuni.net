@@ -60,12 +60,6 @@ variable "gcp_region" {
   default     = "us-west1"
 }
 
-variable "gcp_zone" {
-  description = "GCP Zone"
-  type        = string
-  default     = "us-west1-b"
-}
-
 # =============================================================================
 # GitHub Variables
 # =============================================================================

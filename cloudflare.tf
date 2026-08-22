@@ -140,36 +140,4 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
   }
 }
 
-# GCE Tunnel (for Cloud Run)
-resource "random_password" "gce_tunnel_secret" {
-  length  = 64
-  special = false
-}
-
-resource "cloudflare_zero_trust_tunnel_cloudflared" "gce" {
-  account_id    = var.cloudflare_account_id
-  name          = "gce-cloud-run"
-  config_src    = "cloudflare" # Cloudflare側で設定を管理
-  tunnel_secret = base64encode(random_password.gce_tunnel_secret.result)
-}
-
-# cloudflared tunnel token は API から取得せず手元の材料から組み立てる。
-# Cloudflare API の GET /cfd_tunnel/:id/token は Tunnel: Edit を要求する一方、
-# この値は base64(JSON{a,t,s}) という公開済みの構造で、a/t/s はすべてこの state で所有している。
-# ローカル合成により plan 用 API token を Read 権限に留められる。
-locals {
-  # sensitive() で明示ラップし、plan 出力・PR コメントへの混入を防ぐ。
-  # 材料側 (random_password.result / var.cloudflare_account_id) も sensitive のため
-  # 本来自動伝播されるが、関数合成を跨いでも確実に redact されるよう保険を掛ける。
-  gce_tunnel_token = sensitive(base64encode(jsonencode({
-    a = var.cloudflare_account_id
-    t = cloudflare_zero_trust_tunnel_cloudflared.gce.id
-    s = base64encode(random_password.gce_tunnel_secret.result)
-  })))
-}
-
-# =============================================================================
-# GCE Tunnel Configuration (ingress rules)
-# =============================================================================
-
 # Cloud Run URLはデータソースから動的に取得

@@ -133,50 +133,6 @@ resource "google_service_account" "fighter_workload" {
   display_name = each.value.display_name
   description  = "Least-privilege identity for ${each.key} of Fighter Notes"
 }
-
-# Cloud Scheduler needs a Google service account only to mint the OAuth token
-# used for Jobs.run. It cannot update the Job and receives no workload secrets.
-resource "google_service_account" "fighter_cleanup_scheduler" {
-  account_id   = "fighter-cleanup-scheduler"
-  display_name = "Fighter Notes Cleanup Scheduler"
-  description  = "Invokes only the Fighter Notes expiry cleanup Cloud Run Job"
-}
-
-# Terraform owns the cleanup Job's existence so resource-level IAM can be
-# attached before the first application deployment. fighter-notes owns the
-# executable template and replaces it on every release; ignoring template
-# drift avoids duplicating that application configuration in this repository.
-resource "google_cloud_run_v2_job" "fighter_cleanup_bootstrap" {
-  project  = var.gcp_project_id
-  location = var.gcp_region
-  name     = "fighter-cleanup"
-  # 撤去のため false にする。true のままでは destroy が拒否されるので、
-  # この変更を先に反映してから resource を消す (2 段階の apply が要る)。
-  deletion_protection = false
-
-  template {
-    template {
-      service_account = google_service_account.fighter_workload["cleanup"].email
-      max_retries     = 0
-      timeout         = "60s"
-
-      containers {
-        name  = "bootstrap"
-        image = "us-docker.pkg.dev/cloudrun/container/job@sha256:607a768501c02c101d852c250ffa8b18021ddd9e0ec9215ed2763494f66de5e4"
-      }
-    }
-  }
-
-  lifecycle {
-    ignore_changes = [template, client, client_version]
-  }
-
-  depends_on = [
-    google_project_service.required["run.googleapis.com"],
-    google_service_account_iam_member.terraform_github_fighter_cleanup_act_as,
-  ]
-}
-
 # The CI apply identity needs actAs only to bootstrap the Job with its dedicated
 # workload identity. It does not receive any of that identity's secret access.
 resource "google_service_account_iam_member" "terraform_github_fighter_cleanup_act_as" {
@@ -184,16 +140,6 @@ resource "google_service_account_iam_member" "terraform_github_fighter_cleanup_a
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.terraform_github.email}"
 }
-
-# The CI apply identity must be able to attach the OAuth identity to the
-# Scheduler target. This does not grant it access to that identity's tokens.
-resource "google_service_account_iam_member" "terraform_github_fighter_cleanup_scheduler_act_as" {
-  service_account_id = google_service_account.fighter_cleanup_scheduler.name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${google_service_account.terraform_github.email}"
-}
-
-
 resource "cloudflare_zero_trust_access_service_token" "fighter_db" {
   for_each = local.fighter_workloads
 
