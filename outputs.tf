@@ -12,13 +12,6 @@ output "cloudflare_zone_name" {
   description = "Cloudflare Zone name"
   value       = data.cloudflare_zone.main.name
 }
-
-output "gce_tunnel_id" {
-  description = "GCE Tunnel ID"
-  value       = cloudflare_zero_trust_tunnel_cloudflared.gce.id
-  sensitive   = true
-}
-
 # =============================================================================
 # GCP Outputs
 # =============================================================================
@@ -60,17 +53,6 @@ output "fighter_workload_service_accounts" {
   description = "Dedicated Fighter Notes runtime, migration, and cleanup identities"
   value       = { for name, account in google_service_account.fighter_workload : name => account.email }
 }
-
-output "tunnel_gateway_instance" {
-  description = "Tunnel gateway instance name"
-  value       = google_compute_instance.tunnel_gateway.name
-}
-
-output "tunnel_gateway_service_account" {
-  description = "Tunnel gateway service account email"
-  value       = google_service_account.tunnel_gateway.email
-}
-
 # =============================================================================
 # Cloudflare Access client IDs — values to register in app GitHub secrets
 # =============================================================================
