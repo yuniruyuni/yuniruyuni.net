@@ -147,10 +147,12 @@ resource "google_service_account" "fighter_cleanup_scheduler" {
 # executable template and replaces it on every release; ignoring template
 # drift avoids duplicating that application configuration in this repository.
 resource "google_cloud_run_v2_job" "fighter_cleanup_bootstrap" {
-  project             = var.gcp_project_id
-  location            = var.gcp_region
-  name                = "fighter-cleanup"
-  deletion_protection = true
+  project  = var.gcp_project_id
+  location = var.gcp_region
+  name     = "fighter-cleanup"
+  # 撤去のため false にする。true のままでは destroy が拒否されるので、
+  # この変更を先に反映してから resource を消す (2 段階の apply が要る)。
+  deletion_protection = false
 
   template {
     template {
@@ -175,14 +177,6 @@ resource "google_cloud_run_v2_job" "fighter_cleanup_bootstrap" {
   ]
 }
 
-resource "google_cloud_run_v2_job_iam_member" "fighter_cleanup_scheduler_invoker" {
-  project  = var.gcp_project_id
-  location = var.gcp_region
-  name     = google_cloud_run_v2_job.fighter_cleanup_bootstrap.name
-  role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.fighter_cleanup_scheduler.email}"
-}
-
 # The CI apply identity needs actAs only to bootstrap the Job with its dedicated
 # workload identity. It does not receive any of that identity's secret access.
 resource "google_service_account_iam_member" "terraform_github_fighter_cleanup_act_as" {
@@ -199,43 +193,6 @@ resource "google_service_account_iam_member" "terraform_github_fighter_cleanup_s
   member             = "serviceAccount:${google_service_account.terraform_github.email}"
 }
 
-resource "google_cloud_scheduler_job" "fighter_cleanup" {
-  project          = var.gcp_project_id
-  region           = var.gcp_region
-  name             = "fighter-cleanup-daily"
-  description      = "Run the Fighter Notes expiry cleanup Cloud Run Job every day"
-  schedule         = "23 2 * * *"
-  time_zone        = "Asia/Tokyo"
-  attempt_deadline = "30s"
-
-  retry_config {
-    retry_count          = 3
-    max_retry_duration   = "600s"
-    min_backoff_duration = "5s"
-    max_backoff_duration = "60s"
-    max_doublings        = 3
-  }
-
-  http_target {
-    http_method = "POST"
-    uri         = "https://run.googleapis.com/v2/projects/${var.gcp_project_id}/locations/${var.gcp_region}/jobs/fighter-cleanup:run"
-    body        = base64encode("{}")
-
-    headers = {
-      "Content-Type" = "application/json"
-    }
-
-    oauth_token {
-      service_account_email = google_service_account.fighter_cleanup_scheduler.email
-    }
-  }
-
-  depends_on = [
-    google_project_service.required["cloudscheduler.googleapis.com"],
-    google_cloud_run_v2_job_iam_member.fighter_cleanup_scheduler_invoker,
-    google_service_account_iam_member.terraform_github_fighter_cleanup_scheduler_act_as,
-  ]
-}
 
 resource "cloudflare_zero_trust_access_service_token" "fighter_db" {
   for_each = local.fighter_workloads
@@ -467,30 +424,6 @@ resource "google_artifact_registry_repository_iam_member" "fighter_deployer_read
 # is removed, that identity can still upload to repositories where Editor is
 # sufficient. Fighter mitigates this residual risk with a dedicated immutable
 # repository, unique release tags, and separate builder/deployer identities.
-
-resource "google_cloud_run_service_iam_member" "fighter_deployer" {
-  project  = var.gcp_project_id
-  location = var.gcp_region
-  service  = local.cloud_run_services.fighter.name
-  role     = "roles/run.developer"
-  member   = "serviceAccount:${google_service_account.fighter_deployer.email}"
-}
-
-resource "google_cloud_run_v2_job_iam_member" "fighter_migration_deployer" {
-  project  = var.gcp_project_id
-  location = var.gcp_region
-  name     = "fighter-migration"
-  role     = "roles/run.developer"
-  member   = "serviceAccount:${google_service_account.fighter_deployer.email}"
-}
-
-resource "google_cloud_run_v2_job_iam_member" "fighter_cleanup_deployer" {
-  project  = var.gcp_project_id
-  location = var.gcp_region
-  name     = google_cloud_run_v2_job.fighter_cleanup_bootstrap.name
-  role     = "roles/run.developer"
-  member   = "serviceAccount:${google_service_account.fighter_deployer.email}"
-}
 
 resource "google_service_account_iam_member" "fighter_deployer_act_as" {
   for_each = local.fighter_workloads

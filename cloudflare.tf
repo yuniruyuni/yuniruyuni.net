@@ -55,10 +55,11 @@ resource "cloudflare_dns_record" "records" {
   zone_id = data.cloudflare_zone.main.zone_id
   name    = each.value.name
   type    = each.value.type
+  # 行き先は VPS の IP か VPS のトンネルの 2 つだけ。Cloud Run を前に
+  # 置いていた GCE トンネルは、全アプリを VPS へ移したので撤去した。
   content = (
     each.value.target == "vps" ? var.vps_ip_address :
-    each.value.target == "tunnel_main" ? "${cloudflare_zero_trust_tunnel_cloudflared.main.id}.cfargotunnel.com" :
-    "${cloudflare_zero_trust_tunnel_cloudflared.gce.id}.cfargotunnel.com"
+    "${cloudflare_zero_trust_tunnel_cloudflared.main.id}.cfargotunnel.com"
   )
   proxied = each.value.proxied
   ttl     = each.value.proxied ? 1 : 300 # Auto for proxied, 5min for direct
@@ -172,30 +173,3 @@ locals {
 # =============================================================================
 
 # Cloud Run URLはデータソースから動的に取得
-resource "cloudflare_zero_trust_tunnel_cloudflared_config" "gce" {
-  account_id = var.cloudflare_account_id
-  tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.gce.id
-
-  config = {
-    ingress = concat(
-      # Cloud Run services (dynamically generated)
-      # hostname = "" means root domain (yuniruyuni.net)
-      [
-        for key, svc in local.cloud_run_services : {
-          hostname = svc.hostname == "" ? var.zone_name : "${svc.hostname}.${var.zone_name}"
-          service  = data.google_cloud_run_service.services[key].status[0].url
-          origin_request = {
-            http_host_header = replace(data.google_cloud_run_service.services[key].status[0].url, "https://", "")
-          }
-        }
-      ],
-      # Catch-all (required)
-      [
-        {
-          service        = "http_status:404"
-          origin_request = null
-        }
-      ]
-    )
-  }
-}
