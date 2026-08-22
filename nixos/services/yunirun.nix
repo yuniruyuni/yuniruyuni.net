@@ -42,6 +42,21 @@
       web = "yuniruyuni/web";
       tags = "yuniruyuni/StreamTagInventory";
       post = "yuniruyuni/StreamerPost";
+
+      # fighter だけ認可先を明示する。
+      #
+      # このリポジトリは OIDC の sub claim prefix をカスタマイズしていて、
+      # repo:<owner>/<repo> ではなく数値 id を含む形になっている。実測値:
+      #   gh api repos/yuniruyuni/FighterNotes/actions/oidc/customization/sub
+      #   -> "sub_claim_prefix": "repo:yuniruyuni@85034901/FighterNotes@1313852776"
+      # リポジトリ名から導けないのでそのまま書く。
+      #
+      # 後半が :ref:refs/heads/main なのは、deploy job に environment: を
+      # 付けていないため。付けると :environment:<name> に変わる。
+      fighter = {
+        repo = "yuniruyuni/FighterNotes";
+        principal = "repo:yuniruyuni@85034901/FighterNotes@1313852776:ref:refs/heads/main";
+      };
     };
   };
 }
