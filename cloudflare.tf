@@ -44,8 +44,8 @@ locals {
     root    = { name = var.zone_name, type = "CNAME", target = "tunnel_main", proxied = true }
     tags    = { name = "tags", type = "CNAME", target = "tunnel_main", proxied = true }
 
-    # GCE Tunnel (CNAME to gce tunnel)
-    fighter = { name = "fighter", type = "CNAME", target = "tunnel_gce", proxied = true }
+    # fighter も VPS へ移設済み。GCE トンネルの利用者はこれで居なくなった。
+    fighter = { name = "fighter", type = "CNAME", target = "tunnel_main", proxied = true }
   }
 }
 
@@ -124,6 +124,12 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
       {
         hostname = "tags.${var.zone_name}"
         service  = "http://localhost:8250"
+      },
+      # fighter。Cloud Run から VPS へ移設した。DB は元から VPS の
+      # PostgreSQL なので、アプリが DB の隣へ来たことになる。
+      {
+        hostname = "fighter.${var.zone_name}"
+        service  = "http://localhost:8260"
       },
       # Catch-all (required)
       {
