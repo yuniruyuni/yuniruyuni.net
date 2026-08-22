@@ -28,24 +28,6 @@ locals {
     "cloudresourcemanager.googleapis.com", # project-level IAM management
   ])
 
-  # Cloud Run services configuration
-  # hostname = "" means root domain (yuniruyuni.net)
-  cloud_run_services = {
-    costume              = { name = "costume", hostname = "costume" }
-    lom                  = { name = "lom", hostname = "lom" }
-    stream_tag_inventory = { name = "stream-tag-inventory", hostname = "tags" }
-    web                  = { name = "web", hostname = "" }
-    fighter              = { name = "fighter", hostname = "fighter" }
-  }
-
-  # Cloud Run services are invoked through the GCE tunnel gateway. The services
-  # may allow unauthenticated invocations for that internal path, but they must
-  # not expose an allUsers invoker binding to the public internet.
-  allowed_cloud_run_ingress = toset([
-    "internal",
-    "internal-and-cloud-load-balancing",
-  ])
-
   # DB-enabled apps: each gets 2 secrets (app password + admin password)
   # New app: add one entry here
   db_apps = {
@@ -358,41 +340,6 @@ resource "google_secret_manager_secret_iam_member" "gce_tunnel_token_accessor" {
 }
 
 # =============================================================================
-# Cloud Run Data Sources (consolidated with for_each)
-# =============================================================================
-
-data "google_cloud_run_service" "services" {
-  for_each = local.cloud_run_services
-  name     = each.value.name
-  location = var.gcp_region
-}
-
-# =============================================================================
-# Cloud Run Invoker (consolidated with for_each)
-# =============================================================================
-
-# With ingress: internal, traffic is restricted to VPC only
-# allUsers IAM allows unauthenticated requests from within the VPC
-# (cloudflared doesn't add auth headers, so allUsers is still needed)
-resource "google_cloud_run_service_iam_member" "public_invoker" {
-  for_each = local.cloud_run_services
-  location = var.gcp_region
-  service  = each.value.name
-  role     = "roles/run.invoker"
-  member   = "allUsers"
-
-  lifecycle {
-    precondition {
-      condition = contains(
-        local.allowed_cloud_run_ingress,
-        try(data.google_cloud_run_service.services[each.key].metadata[0].effective_annotations["run.googleapis.com/ingress"], "")
-      )
-      error_message = "Cloud Run service ${each.value.name} must use restricted ingress before granting allUsers invoker."
-    }
-  }
-}
-
-# =============================================================================
 # Secret Manager (for Cloud Run database credentials)
 # =============================================================================
 
@@ -423,26 +370,6 @@ resource "google_secret_manager_secret" "db_app_password" {
 # Grant the current Cloud Run SA access to both secrets for applications that
 # still use the legacy shared identity. Fighter has per-workload grants in
 # fighter_security.tf so its runtime cannot read the owner/migration password.
-resource "google_secret_manager_secret_iam_member" "db_password_accessor" {
-  for_each = {
-    for key, app in local.db_apps : key => app
-    if key != "fighter"
-  }
-  secret_id = google_secret_manager_secret.db_password[each.key].id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
-}
-
-resource "google_secret_manager_secret_iam_member" "db_app_password_accessor" {
-  for_each = {
-    for key, app in local.db_apps : key => app
-    if key != "fighter"
-  }
-  secret_id = google_secret_manager_secret.db_app_password[each.key].id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${data.google_cloud_run_service.services[each.key].template[0].spec[0].service_account_name}"
-}
-
 # =============================================================================
 # Secret Manager (Cloudflare Access service token for DB tunnel)
 # =============================================================================
