@@ -70,6 +70,38 @@
         principal = "repo:yuniruyuni/yuniruyuni.net:environment:apply";
         issuer = "https://token.actions.githubusercontent.com";
       }
+
+      # --- ここから下は immutable subject claim への移行中だけ置くもの ---
+      #
+      # GitHub は 2026-07-15 以降に作られたリポジトリの sub を、名前ではなく
+      # 数値 id を含む形にした。旧形式は名前空間の再利用に弱く、リポジトリを
+      # 消して同じ名前で作り直せば同じ sub が再現してしまう。OIDC の仕様は
+      # sub を二度と再割り当てされないものとしているので、旧形式はそもそも
+      # それを満たしていない。既存のリポジトリも opt-in できるので揃える。
+      #
+      # リネームや移管でも新形式へ切り替わるため、放置すると名前を変えた
+      # 瞬間に認可が外れる。原因の分かりにくい形で止まるので先に手を打つ。
+      #
+      # 認可は加算的な OR なので、新旧を両方置けば切り替えの前後どちらでも
+      # 通る。全リポジトリの opt-in を確認したら、旧形式の側を消す。
+      {
+        user = "yuniruyuni";
+        principal = "repo:yuniruyuni@85034901/yuniruyuni.net@1181770564:environment:apply";
+        issuer = "https://token.actions.githubusercontent.com";
+      }
+    ]
+    ++ map
+      (p: {
+        user = "yunirun-${p.app}";
+        principal = "repo:yuniruyuni@85034901/${p.repo}@${p.id}:ref:refs/heads/main";
+        issuer = "https://token.actions.githubusercontent.com";
+      }) [
+      { app = "template"; repo = "template"; id = "1203258260"; }
+      { app = "costume"; repo = "costume"; id = "1181870108"; }
+      { app = "lom"; repo = "LegendOfManaWeapon"; id = "1181342776"; }
+      { app = "web"; repo = "web"; id = "830180787"; }
+      { app = "tags"; repo = "StreamTagInventory"; id = "836372101"; }
+      { app = "post"; repo = "StreamerPost"; id = "1020573506"; }
     ];
   };
 }
