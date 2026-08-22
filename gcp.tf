@@ -8,50 +8,29 @@ provider "google" {
 }
 
 # =============================================================================
-# Locals (shared configuration)
+# Enable Required APIs
 # =============================================================================
 
+# 2026-08-22 に Cloud Run 一式を撤去した。全 7 アプリが VPS 上の yunirun へ
+# 移り、GCP に置く必要のあるものが Terraform の state 置き場と、その CI が
+# 使う Workload Identity (ci.tf) だけになったため。
+#
+# ここから外したのは run / compute / artifactregistry / containeranalysis /
+# cloudscheduler。disable_on_destroy = false なので、一覧から外しても API
+# 自体は有効なまま残る。Google OAuth のクライアント (Cloudflare Access の
+# ID プロバイダと StreamerPost のログイン) はこのプロジェクトにあるが、
+# Terraform の管理外なのでリソースの削除では消えない。
 locals {
-  # Required GCP APIs
   required_apis = toset([
-    "run.googleapis.com",
-    "compute.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
-    "artifactregistry.googleapis.com",
-    "containeranalysis.googleapis.com",
-    "cloudscheduler.googleapis.com",
     "secretmanager.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
     "storage.googleapis.com",              # state bucket + SM usage
     "cloudresourcemanager.googleapis.com", # project-level IAM management
   ])
-
-  # DB-enabled apps: each gets 2 secrets (app password + admin password)
-  # New app: add one entry here
-  db_apps = {
-    stream_tag_inventory = {
-      service_name = "stream-tag-inventory"
-    }
-    # DB access は将来の拡張用にプロビジョニングのみ（アプリはクエリしない）
-    fighter = {
-      service_name = "fighter"
-    }
-  }
-
-  # GitHub Apps Deployer roles
-  github_deployer_roles = toset([
-    "roles/run.developer",
-    "roles/iam.serviceAccountUser",
-    "roles/secretmanager.viewer",
-  ])
-
 }
-
-# =============================================================================
-# Enable Required APIs (consolidated with for_each)
-# =============================================================================
 
 resource "google_project_service" "required" {
   for_each           = local.required_apis
@@ -59,202 +38,7 @@ resource "google_project_service" "required" {
   disable_on_destroy = false
 }
 
-# =============================================================================
-# Artifact Registry (for Cloud Run container images)
-# =============================================================================
-
-resource "google_artifact_registry_repository" "apps" {
-  location      = var.gcp_region
-  repository_id = "apps"
-  description   = "Container images for Cloud Run apps"
-  format        = "DOCKER"
-
-  # Automatic scans are billed per image digest, so keep them disabled for this
-  # personal project even if scanning is enabled outside Terraform.
-  vulnerability_scanning_config {
-    enablement_config = "DISABLED"
-  }
-
-  # Keep only the 3 most recent versions per image to stay within 500MB free tier
-  cleanup_policies {
-    id     = "keep-recent-versions"
-    action = "KEEP"
-    most_recent_versions {
-      keep_count = 3
-    }
-  }
-
-  cleanup_policies {
-    id     = "delete-old-images"
-    action = "DELETE"
-    condition {
-      older_than = "604800s" # 7 days
-    }
-  }
-
-  depends_on = [google_project_service.required]
-}
-
-# The legacy multi-app deployer remains able to publish existing applications,
-# but its writer grant must not inherit into the isolated Fighter repository.
-resource "google_artifact_registry_repository_iam_member" "github_apps_deployer_writer" {
-  project    = var.gcp_project_id
-  location   = google_artifact_registry_repository.apps.location
-  repository = google_artifact_registry_repository.apps.name
-  role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.github_apps_deployer.email}"
-}
-
-# =============================================================================
-# Workload Identity for GitHub Actions
-# =============================================================================
-
-resource "google_iam_workload_identity_pool" "github_actions" {
-  workload_identity_pool_id = "github-actions-pool"
-  display_name              = "GitHub Actions Pool"
-  description               = "Pool for GitHub Actions across multiple repositories"
-}
-
-resource "google_iam_workload_identity_pool_provider" "github_actions" {
-  workload_identity_pool_id          = google_iam_workload_identity_pool.github_actions.workload_identity_pool_id
-  workload_identity_pool_provider_id = "github-actions-provider"
-  display_name                       = "GitHub Actions Provider"
-
-  attribute_mapping = {
-    "google.subject"       = "assertion.sub"
-    "attribute.actor"      = "assertion.actor"
-    "attribute.repository" = "assertion.repository"
-    "attribute.owner"      = "assertion.repository_owner"
-  }
-
-  attribute_condition = <<-EOT
-    assertion.repository_owner == "yuniruyuni" &&
-    assertion.repository in [${join(", ", [for r in var.github_repositories : "\"yuniruyuni/${r}\""])}]
-  EOT
-
-  oidc {
-    issuer_uri = "https://token.actions.githubusercontent.com"
-  }
-}
-
-# =============================================================================
-# Service Accounts
-# =============================================================================
-
-# GitHub Apps Deployer (for app repositories)
-resource "google_service_account" "github_apps_deployer" {
-  account_id   = "github-apps-deployer"
-  display_name = "GitHub Apps Deployer"
-  description  = "Service account for deploying apps from GitHub Actions"
-}
-
-resource "google_service_account_iam_member" "github_apps_deployer_workload_identity" {
-  service_account_id = google_service_account.github_apps_deployer.name
-  role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github_actions.name}/attribute.owner/yuniruyuni"
-}
-
-# GitHub Apps Deployer IAM roles (consolidated with for_each)
-resource "google_project_iam_member" "github_apps_deployer" {
-  for_each = local.github_deployer_roles
-  project  = var.gcp_project_id
-  role     = each.value
-  member   = "serviceAccount:${google_service_account.github_apps_deployer.email}"
-}
-# -----------------------------------------------------------------------------
-# Legacy default Compute service account
-# -----------------------------------------------------------------------------
-#
-# costume / lom / web / stream-tag-inventory とその migration job は
-# この 1 つの ID で動く。GCP は Compute Engine API 有効化時にこの SA へ
-# roles/editor を自動付与するが、それは剥がしてある (2026-08-16)。
-#
-# editor は secretmanager.versions.access を含まないので secret を直接は読めない
-# が、iam.serviceAccounts.actAs と run.services.update を含む。この 2 つが揃うと
-# 「fighter-migration として動く Cloud Run job を deploy して fighter の secret を
-# マウントし中身を出力する」が成立し、fighter_security.tf の per-workload 境界が
-# まるごと迂回される。compute.instances.setMetadata 経由で tunnel-gateway の
-# startup-script を書き換え gce-tunnel-token を抜く経路も同様に通る。
-#
-# この SA が実際に必要なのは、per-secret に付与済みの secretAccessor と、
-# 下の logWriter だけ。editor を再付与しないこと。
-resource "google_project_iam_member" "legacy_compute_logwriter" {
-  project = var.gcp_project_id
-  role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${local.legacy_default_compute_service_account}"
-}
-# =============================================================================
-# Secret Manager (for Cloud Run database credentials)
-# =============================================================================
-
-# Owner/migration DB password (DDL) — one per db_app
-resource "google_secret_manager_secret" "db_password" {
-  for_each  = local.db_apps
-  secret_id = "${each.value.service_name}-db-password"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.required]
-}
-
-# App DB password (DML only) — one per db_app
-resource "google_secret_manager_secret" "db_app_password" {
-  for_each  = local.db_apps
-  secret_id = "${each.value.service_name}-db-app-password"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.required]
-}
-
-# Grant the current Cloud Run SA access to both secrets for applications that
-# still use the legacy shared identity. Fighter has per-workload grants in
-# fighter_security.tf so its runtime cannot read the owner/migration password.
-# =============================================================================
-# Secret Manager (Cloudflare Access service token for DB tunnel)
-# =============================================================================
-
-# Only client_secret lives in Secret Manager. client_id is the identifier sent
-# in the CF-Access-Client-Id header and cannot authenticate on its own, so it is
-# published as the `cf_db_access_client_id` output and injected by each app's
-# deploy workflow instead. Secret Manager bills per active secret version, and a
-# value that needs no confidentiality does not earn that recurring charge.
-resource "google_secret_manager_secret" "cf_db_access_client_secret" {
-  secret_id = "cf-db-access-client-secret"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.required]
-}
-
-resource "google_secret_manager_secret_version" "cf_db_access_client_secret" {
-  secret      = google_secret_manager_secret.cf_db_access_client_secret.id
-  secret_data = cloudflare_zero_trust_access_service_token.cloud_run_db.client_secret
-}
-
-# The shared DB tunnel token belongs to workloads that still run as the legacy
-# default Compute SA. Dedicated workloads such as Fighter receive unique tokens
-# in their own boundary instead of inheriting this shared credential.
-#
-# Deliberately NOT keyed by db_apps. Neither the secret nor the member varies
-# per app, so a for_each produced N Terraform resources describing one single
-# IAM binding. Dropping any one app then destroyed that binding and took down
-# every remaining service that reads this secret -- which is exactly what
-# happened when hush was removed on 2026-08-15. One binding, one resource.
-resource "google_secret_manager_secret_iam_member" "cf_db_client_secret_accessor" {
-  secret_id = google_secret_manager_secret.cf_db_access_client_secret.id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${local.legacy_default_compute_service_account}"
-}
-
-# NOTE: アプリ固有の runtime secret を Terraform で作る仕組み (local.runtime_secrets と
-# google_secret_manager_secret.runtime) は 2026-08-21 に削除した。唯一の利用者だった
-# StreamerPost が VPS へ移り、秘密は agenix が持つようになったため。
-# VPS 上のアプリで秘密が要る場合は、各リポジトリの yunirun.jsonc の secrets で
-# agenix の秘密名を指し、nixos/secrets.nix 側でその秘密を定義する。
+# NOTE: アプリの秘密は agenix が持つ。VPS 上のアプリで秘密が要る場合は、
+# 各リポジトリの yunirun.jsonc の secrets で agenix の秘密名を指し、
+# nixos/secrets.nix 側でその秘密を定義する。DB のパスワードは yunirun が
+# 自分の金庫 (ホスト鍵と管理者鍵で暗号化) に持つ。
