@@ -35,21 +35,46 @@
     # 書き換えるだけでは旧名の資源が残り、しかも旧ユーザが uid とポートを
     # 握ったままで新しいユーザを作れない。この変更を入れる前に、ホスト上で
     # yunirun rename を 6 件走らせて割り当てを引き継がせてある。
+    # principal は全て明示する。導出させない。
+    #
+    # GitHub は 2026-07-15 以降に作られたリポジトリの sub を、名前ではなく
+    # 数値 id を含む形にした。旧形式は名前空間の再利用に弱く、リポジトリを
+    # 消して同じ名前で作り直せば同じ sub が再現する。OIDC の仕様は sub を
+    # 二度と再割り当てされないものとしているので、旧形式はそれを満たさない。
+    # 8 つとも opt-in して新形式へ揃えた。
+    #
+    # id は不変なので、リポジトリ名を変えてもここを直す必要はない。むしろ
+    # 逆で、旧形式のままだとリネームした瞬間に GitHub 側が新形式へ切り替え、
+    # 認可が外れる。実測方法:
+    #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
     apps = {
-      template = "yuniruyuni/template";
-      costume = "yuniruyuni/costume";
-      lom = "yuniruyuni/LegendOfManaWeapon";
-      web = "yuniruyuni/web";
-      tags = "yuniruyuni/StreamTagInventory";
-      post = "yuniruyuni/StreamerPost";
+      template = {
+        repo = "yuniruyuni/template";
+        principal = "repo:yuniruyuni@85034901/template@1203258260:ref:refs/heads/main";
+      };
+      costume = {
+        repo = "yuniruyuni/costume";
+        principal = "repo:yuniruyuni@85034901/costume@1181870108:ref:refs/heads/main";
+      };
+      lom = {
+        repo = "yuniruyuni/LegendOfManaWeapon";
+        principal = "repo:yuniruyuni@85034901/LegendOfManaWeapon@1181342776:ref:refs/heads/main";
+      };
+      web = {
+        repo = "yuniruyuni/web";
+        principal = "repo:yuniruyuni@85034901/web@830180787:ref:refs/heads/main";
+      };
+      tags = {
+        repo = "yuniruyuni/StreamTagInventory";
+        principal = "repo:yuniruyuni@85034901/StreamTagInventory@836372101:ref:refs/heads/main";
+      };
+      post = {
+        repo = "yuniruyuni/StreamerPost";
+        principal = "repo:yuniruyuni@85034901/StreamerPost@1020573506:ref:refs/heads/main";
+      };
 
-      # fighter だけ認可先を明示する。
-      #
-      # このリポジトリは OIDC の sub claim prefix をカスタマイズしていて、
-      # repo:<owner>/<repo> ではなく数値 id を含む形になっている。実測値:
-      #   gh api repos/yuniruyuni/FighterNotes/actions/oidc/customization/sub
-      #   -> "sub_claim_prefix": "repo:yuniruyuni@85034901/FighterNotes@1313852776"
-      # リポジトリ名から導けないのでそのまま書く。
+      # fighter は 2026-07-27 作成で、最初から新形式だった。他の 6 つは
+      # 後から opt-in して揃えたもの。
       #
       # 後半が :ref:refs/heads/main なのは、deploy job に environment: を
       # 付けていないため。付けると :environment:<name> に変わる。
