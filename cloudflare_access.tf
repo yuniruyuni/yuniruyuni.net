@@ -94,13 +94,18 @@ resource "cloudflare_zero_trust_access_application" "n8n_webhook" {
 # Zero Trust Access - PostgreSQL DB (TCP, service token auth)
 # =============================================================================
 
-# Service token for Cloud Run → DB tunnel authentication
+# 外から DB へ繋ぐためのサービストークン。
+#
+# 名前に Cloud Run とあるのは、元々 Cloud Run 上のアプリがこのトンネル越しに
+# DB へ繋いでいた名残。アプリは VPS へ移り Unix ソケットで直接繋ぐように
+# なったので、今の用途は手元からの管理接続だけ。リソース名を変えると
+# トークンが再発行されるため、名前はそのままにしてある。
 resource "cloudflare_zero_trust_access_service_token" "cloud_run_db" {
   account_id = var.cloudflare_account_id
   name       = "Cloud Run DB Access"
 }
 
-# Policy: allow service token (for automated Cloud Run access)
+# Policy: allow service token
 resource "cloudflare_zero_trust_access_policy" "cloud_run_db" {
   account_id = var.cloudflare_account_id
   name       = "Cloud Run DB Service Token"
@@ -127,12 +132,8 @@ resource "cloudflare_zero_trust_access_application" "db" {
       precedence = 1
     },
     {
-      id         = cloudflare_zero_trust_access_policy.fighter_db.id
-      precedence = 2
-    },
-    {
       id         = cloudflare_zero_trust_access_policy.owner.id
-      precedence = 3
+      precedence = 2
     }
   ]
 }

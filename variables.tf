@@ -64,15 +64,3 @@ variable "gcp_region" {
 # GitHub Variables
 # =============================================================================
 
-variable "github_repositories" {
-  description = "List of GitHub repositories allowed to deploy via Workload Identity"
-  type        = list(string)
-  default = [
-    "StreamTagInventory",
-    "costume",
-    "LegendOfManaWeapon",
-    "yuniruyuni.net",
-    "web",
-    "FighterNotes",
-  ]
-}
