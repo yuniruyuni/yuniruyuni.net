@@ -48,23 +48,25 @@
     #   <linux ユーザ> <OIDC identity> <issuer>
     # という 1 行として書き出される。
     #
-    # identity は GitHub OIDC の sub クレームと突き合わせられるが、
-    # nixpkgs 25.11 が入れている opkssh は v0.10.0 で、照合は
-    #   string(claims.Sub) == user.IdentityAttribute
-    # の完全一致のみ。refs/heads/* のような glob は効かない (upstream では
-    # v0.16 で追加された)。デプロイは main への push 限定なので支障はないが、
-    # tag デプロイや GitHub Environment を導入するとこの文字列が変わる
-    # (environment を使うと sub は repo:OWNER/REPO:environment:NAME になる)。
+    # identity は GitHub OIDC の sub クレームと完全一致で突き合わせられる。
+    # ここで使っている v0.16.0 は glob も扱えるが、認可を広げる理由が無いので
+    # 使っていない。
+    #
+    # sub の形は 2 つの要素で決まる。前半はリポジトリの識別で、immutable
+    # subject claim へ移行済みなので数値 id が入る (名前を変えても不変)。
+    # 後半は job の性質で、environment: を使うと :environment:<name>、
+    # 使わなければ :ref:refs/heads/main になる。どちらか一方でも変えると
+    # ここの文字列を直す必要がある。実測は
+    #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
     authorizations = [
       # インフラ repo の deploy (apply-nixos.yml)。着地先が yuniruyuni なのは
       # nixos-rebuild switch に sudo が要るためで、現行の長期鍵と同じ権限に揃えて
       # いる。アプリ側は権限を持たない専用ユーザへ着地させるので、この扱いはここだけ。
       #
-      # environment:apply であって ref:refs/heads/main ではない点に注意。
-      # apply-nixos.yml の deploy job は environment: apply を指定しており、
-      # GitHub は environment を使う job の sub を
-      #   repo:OWNER/REPO:environment:NAME
-      # に変える (ref 形式にはならない)。
+      # 末尾が :environment:apply であって :ref:refs/heads/main ではない点に
+      # 注意。apply-nixos.yml の deploy job が environment: apply を指定して
+      # いるため。アプリ側は environment を使わないので :ref: になる。
+      #
       # インフラ repo の sub も immutable subject claim へ移行済み。
       #
       # 旧形式 (repo:yuniruyuni/yuniruyuni.net:...) は名前空間の再利用に
