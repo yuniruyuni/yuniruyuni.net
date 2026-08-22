@@ -50,9 +50,19 @@ nixos/
 [opkssh](https://github.com/openpubkey/opkssh) で短命の SSH 証明書を発行して接続します
 （設定は `services/opkssh.nix`）。そのため deploy 用の GitHub Secret はありません。
 
-ワークフロー側に `id-token: write` 権限が必要です。`apply-nixos.yml` の deploy job は
-`environment: apply` を使うため、VPS 側で認可する identity は
-`repo:yuniruyuni/yuniruyuni.net:environment:apply` になります（`ref:` 形式ではありません）。
+ワークフロー側に `id-token: write` 権限が必要です。VPS 側で認可する identity は
+
+```
+repo:yuniruyuni@85034901/yuniruyuni.net@1181770564:environment:apply
+```
+
+です。後半が `:environment:` なのは deploy job が `environment: apply` を使うため
+（`ref:` 形式にはなりません）。前半に数値 id が入るのは immutable subject claim へ
+移行済みだからで、リポジトリ名を変えてもこの文字列は変わりません。実測は
+
+```bash
+gh api repos/yuniruyuni/yuniruyuni.net/actions/oidc/customization/sub
+```
 
 ## 手動デプロイ
 

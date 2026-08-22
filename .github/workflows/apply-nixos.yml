@@ -19,9 +19,12 @@ jobs:
     environment: apply
     permissions:
       # opkssh が OIDC トークンを取得するのに必須。
-      # environment を使う job なので sub は
-      #   repo:yuniruyuni/yuniruyuni.net:environment:apply
-      # になる (ref 形式ではない)。
+      #
+      # この job の sub は
+      #   repo:yuniruyuni@85034901/yuniruyuni.net@1181770564:environment:apply
+      # になる。後半が :environment: なのは environment: apply を使うためで、
+      # 前半に数値 id が入るのは immutable subject claim へ移行済みだから。
+      # 認可先は nixos/services/opkssh.nix にあり、完全一致で照合される。
       id-token: write
       contents: read
 
