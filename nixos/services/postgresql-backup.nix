@@ -1,6 +1,17 @@
-# PostgreSQL backup configuration
-# Daily pg_dumpall backup, encrypted with age, uploaded to Google Drive via rclone
-# Follows the same pattern as incus-backup.nix
+# アプリごとの PostgreSQL のバックアップ
+#
+# 1 日 1 回、DB を持つアプリを順に pg_dump し、まとめて 1 つのアーカイブに
+# して age で暗号化し Google Drive へ上げる。7 世代保持。
+#
+# 2026-08-23 まで共有インスタンス 1 台を pg_dumpall で丸ごと取っていた。DB を
+# アプリごとのコンテナに分けたので、対象を宣言から引く形にした。
+#
+# 対象は yunirun databases から引く。DB 名やソケットの場所をここで推測すると、
+# 規約を変えたときに静かにずれる。ずれても「取れた分だけ成功」に見えるのが
+# 厄介で、気付くのは復元しようとした時になる。
+#
+# 採取は root がホストの pg_dump でソケット越しに行う。podman を経由する必要は
+# ない。ソケットは bind mount でホスト側に見えている。
 
 { config, pkgs, ... }:
 
@@ -37,9 +48,32 @@ let
 
     echo "Starting PostgreSQL backup..."
 
-    # Hot backup using pg_dumpall (no downtime)
-    echo "Dumping all databases..."
-    sudo -u postgres ${pkgs.postgresql_18}/bin/pg_dumpall | ${pkgs.gzip}/bin/gzip > "$BACKUP_FILE"
+    # 稼働したまま取れる。
+    DUMPDIR=$(mktemp -d)
+    trap 'rm -rf "$DUMPDIR"; cleanup' EXIT
+
+    yunirun databases \
+      | ${pkgs.jq}/bin/jq -r '.[] | [.app, .name, .owner, .socketDir, .ownerPasswordFile] | @tsv' \
+      > "$DUMPDIR/.targets"
+
+    COUNT=0
+    while IFS=$'\t' read -r APP DBNAME OWNER SOCK PWFILE; do
+      [ -n "$APP" ] || continue
+      echo "Dumping $APP ($DBNAME)..."
+      PW=$(${pkgs.gnugrep}/bin/grep -oP '(?<=DB_PASSWORD=).*' "$PWFILE")
+      PGPASSWORD="$PW" ${pkgs.postgresql_18}/bin/pg_dump \
+        -h "$SOCK" -U "$OWNER" -d "$DBNAME" -Fc -f "$DUMPDIR/$APP.dump"
+      COUNT=$((COUNT + 1))
+    done < "$DUMPDIR/.targets"
+    rm -f "$DUMPDIR/.targets"
+
+    # 1 つも取れないのは異常。黙って空のアーカイブを上げない。
+    if [ "$COUNT" -eq 0 ]; then
+      echo "ERROR: 取得できた DB が 1 つも無い"
+      exit 1
+    fi
+    echo "Dumped $COUNT databases."
+    ${pkgs.gnutar}/bin/tar -czf "$BACKUP_FILE" -C "$DUMPDIR" .
 
     # Encrypt backup before upload
     echo "Encrypting backup..."
@@ -108,14 +142,21 @@ let
     ${pkgs.age}/bin/age -d -i "$AGE_KEY" -o "$DECRYPTED_FILE" "$RESTORE_DIR/$BACKUP_NAME"
     rm -f "$RESTORE_DIR/$BACKUP_NAME"
 
-    # Restore
-    echo "Restoring databases..."
-    ${pkgs.gzip}/bin/gunzip -c "$DECRYPTED_FILE" | sudo -u postgres ${pkgs.postgresql_18}/bin/psql
+    # 展開だけして、流し込みは手で行う。
+    #
+    # アプリごとに別の DB なので、どれをどこへ戻すかは状況による。自動で全部
+    # 戻すと、生きているアプリのデータまで巻き戻す。
+    echo "Extracting..."
+    ${pkgs.gnutar}/bin/tar -xzf "$DECRYPTED_FILE" -C "$RESTORE_DIR"
+    rm -f "$DECRYPTED_FILE"
 
-    # Cleanup
-    rm -rf "$RESTORE_DIR"
-
-    echo "Restore completed successfully!"
+    echo ""
+    echo "展開しました: $RESTORE_DIR"
+    ls -la "$RESTORE_DIR"
+    echo ""
+    echo "戻すには、対象アプリを止めてから yunirun databases で接続先を確認し、"
+    echo "pg_restore --clean --if-exists で流し込んでください。"
+    echo "終わったら $RESTORE_DIR を消してください (平文が残ります)。"
   '';
 
 in
@@ -143,7 +184,7 @@ in
     after = [ "network-online.target" "rclone-config-setup.service" "postgresql.service" ];
     wants = [ "network-online.target" ];
     requires = [ "rclone-config-setup.service" ];
-    path = [ pkgs.postgresql_18 pkgs.rclone pkgs.age pkgs.coreutils pkgs.gzip pkgs.sudo ];
+    path = [ pkgs.postgresql_18 pkgs.rclone pkgs.age pkgs.coreutils pkgs.gzip pkgs.gnutar pkgs.jq pkgs.gnugrep ];
     serviceConfig = {
       Type = "oneshot";
       ExecStart = "${postgresqlBackup}/bin/postgresql-backup";

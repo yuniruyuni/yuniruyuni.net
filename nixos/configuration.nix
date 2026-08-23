@@ -16,7 +16,6 @@
     ./services/monitoring.nix
     ./services/opkssh.nix
     ./services/podman-secrets.nix
-    ./services/postgresql.nix
     ./services/postgresql-backup.nix
     ./services/swap.nix
     ./services/yunirun.nix
