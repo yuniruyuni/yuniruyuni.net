@@ -24,12 +24,6 @@ output "cloudflare_zone_name" {
 # sent in the CF-Access-Client-Id header) but because plan output is posted to
 # PR comments on this public repository.
 
-output "cf_db_access_client_id" {
-  description = "Shared DB tunnel client ID (CF_DB_ACCESS_CLIENT_ID in template / StreamTagInventory)"
-  value       = cloudflare_zero_trust_access_service_token.cloud_run_db.client_id
-  sensitive   = true
-}
-
 # =============================================================================
 # CI (terraform-itself) Outputs — values to register in GitHub secrets
 # =============================================================================
