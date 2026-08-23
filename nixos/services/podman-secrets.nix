@@ -4,7 +4,7 @@
 # 該当サービスの podman secret として参照できる」という契約を作ること。
 # アプリ側の Quadlet は
 #
-#   Secret=db-password-template_app,type=env,target=DB_PASSWORD
+#   Secret=streamer-post-better-auth-secret,type=env,target=BETTER_AUTH_SECRET
 #
 # と書くだけでよく、秘密の受け渡し方法を各アプリが知る必要がなくなる。
 #

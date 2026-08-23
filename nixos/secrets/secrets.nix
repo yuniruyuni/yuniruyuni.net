@@ -45,12 +45,4 @@ in
   "streamer-post-google-client-secret.age".publicKeys = systems ++ admins;
 
   # PostgreSQL DB passwords (per-app: owner + app user)
-  "db-password-stream_tag_inventory.age".publicKeys = systems ++ admins;
-  "db-password-stream_tag_inventory_app.age".publicKeys = systems ++ admins;
-  "db-password-template.age".publicKeys = systems ++ admins;
-  "db-password-template_app.age".publicKeys = systems ++ admins;
-  "db-password-fighter.age".publicKeys = systems ++ admins;
-  "db-password-fighter_app.age".publicKeys = systems ++ admins;
-  "db-password-streamer_post.age".publicKeys = systems ++ admins;
-  "db-password-streamer_post_app.age".publicKeys = systems ++ admins;
 }
