@@ -12,6 +12,9 @@
 #
 # 採取は root がホストの pg_dump でソケット越しに行う。podman を経由する必要は
 # ない。ソケットは bind mount でホスト側に見えている。
+#
+# yunirun は絶対パスで呼ぶ。systemd の unit は環境変数を引き継がないので、
+# PATH に入っている前提で書くと command not found で落ちる。
 
 { config, pkgs, ... }:
 
@@ -52,7 +55,7 @@ let
     DUMPDIR=$(mktemp -d)
     trap 'rm -rf "$DUMPDIR"; cleanup' EXIT
 
-    yunirun databases \
+    ${config.services.yunirun.package}/bin/yunirun databases \
       | ${pkgs.jq}/bin/jq -r '.[] | [.app, .name, .owner, .socketDir, .ownerPasswordFile] | @tsv' \
       > "$DUMPDIR/.targets"
 
