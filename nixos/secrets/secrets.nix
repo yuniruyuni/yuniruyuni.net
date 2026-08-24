@@ -44,5 +44,14 @@ in
   "streamer-post-twitch-client-secret.age".publicKeys = systems ++ admins;
   "streamer-post-google-client-secret.age".publicKeys = systems ++ admins;
 
+  # yunirun がアプリ側の秘密 (secrets/<ENV_NAME>.age) を復号するための age 秘密鍵。
+  #
+  # ホスト鍵 (vps) とは別に持つ。ホスト鍵は ssh のホスト鍵から導いているので
+  # ホストを作り直すと変わるが、アプリのリポジトリにある暗号文は人が暗号化した
+  # もので、鍵が変わると全アプリで暗号化し直しになる。
+  #
+  # 対応する公開鍵: age1uar0qhs2aev0s56rh6ckp6exrt76xk7revwpqfgtkwhgu9w4nu5q9eekgs
+  "yunirun-secrets-key.age".publicKeys = systems ++ admins;
+
   # PostgreSQL DB passwords (per-app: owner + app user)
 }

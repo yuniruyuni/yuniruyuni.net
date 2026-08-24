@@ -7,7 +7,7 @@
 # かつて services/apps.nix が同じ役目を担っていたが、こちらへ全て移し終えて
 # 撤去した。ポート帯と uid 帯は並行運用のためにずらしたものをそのまま使う。
 
-{ ... }:
+{ config, ... }:
 
 {
   services.yunirun = {
@@ -17,6 +17,11 @@
     # 生成した秘密を復号できる管理者の鍵。ホストを失ったときの復旧経路になる。
     # secrets/secrets.nix の onepassword と同じもの。
     adminRecipient = "age1t5u8r467lwp2t5d0qjr38va4nmly3wyg5k9fwttaakmu66q4zyvqq58qav";
+
+    # アプリ側の秘密 (secrets/<ENV_NAME>.age) を復号する鍵。
+    # 公開鍵は age1uar0qhs2aev0s56rh6ckp6exrt76xk7revwpqfgtkwhgu9w4nu5q9eekgs で、
+    # yunirun recipient でも表示できる。
+    secretsKeyPath = config.age.secrets.yunirun-secrets-key.path;
 
     # 割り当ての帯。旧 apps.nix と並行して動かすためにずらしたもの。
     # apps.nix は撤去したが、既定値に戻すと稼働中のアプリの uid とポートが
