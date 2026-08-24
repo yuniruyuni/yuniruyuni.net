@@ -28,6 +28,12 @@
     #   ssh -N -L 8090:127.0.0.1:8090 yuniruyuni.net
     observability.enable = true;
 
+    # アラートの送り先。n8n の webhook に寄せる。
+    #
+    # その先 (Discord なのかメールなのか) は n8n 側で組む。通知先を変えるのに
+    # yunirun も NixOS の宣言も触らずに済む。
+    observability.alertWebhook = "http://127.0.0.1:5678/webhook/yunirun-alert";
+
     # アプリ側の秘密 (secrets/<ENV_NAME>.age) を復号する鍵。
     # 公開鍵は age1uar0qhs2aev0s56rh6ckp6exrt76xk7revwpqfgtkwhgu9w4nu5q9eekgs で、
     # yunirun recipient でも表示できる。
