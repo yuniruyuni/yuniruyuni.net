@@ -60,6 +60,17 @@
       mode = "0400";
     };
 
+    # yunirun がアプリ側の秘密 (secrets/<ENV_NAME>.age) を復号する age 秘密鍵。
+    #
+    # 読むのは converge (root) だけ。ホスト鍵とは別に持つ理由は
+    # secrets/secrets.nix に書いてある。
+    yunirun-secrets-key = {
+      file = ./secrets/yunirun-secrets-key.age;
+      owner = "root";
+      group = "root";
+      mode = "0400";
+    };
+
     rclone-config = {
       file = ./secrets/rclone-config.age;
       owner = "root";
