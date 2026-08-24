@@ -37,13 +37,6 @@ in
   # rclone config for Google Drive backup
   "rclone-config.age".publicKeys = systems ++ admins;
 
-  # StreamerPost (VPS 上で動作)。値は Secret Manager から移設したもので、
-  # 移行時にハッシュ一致を確認済み。
-  "streamer-post-better-auth-secret.age".publicKeys = systems ++ admins;
-  "streamer-post-allowed-emails.age".publicKeys = systems ++ admins;
-  "streamer-post-twitch-client-secret.age".publicKeys = systems ++ admins;
-  "streamer-post-google-client-secret.age".publicKeys = systems ++ admins;
-
   # yunirun がアプリ側の秘密 (secrets/<ENV_NAME>.age) を復号するための age 秘密鍵。
   #
   # ホスト鍵 (vps) とは別に持つ。ホスト鍵は ssh のホスト鍵から導いているので

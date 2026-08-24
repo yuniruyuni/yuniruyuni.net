@@ -33,33 +33,6 @@
       mode = "0400";
     };
 
-    # StreamerPost が使う秘密。yunirun が /run/agenix から読んでコンテナへ
-    # 環境変数として渡す (アプリ側の yunirun.jsonc が対応を宣言する)。
-    #
-    # owner を root にしているのは、読むのが converge (root) だけだから。
-    # コンテナへは yunirun が tmpfs 上の env ファイル経由で渡すので、
-    # アプリのユーザがこのファイルを直接読む必要はない。
-    streamer-post-better-auth-secret = {
-      file = ./secrets/streamer-post-better-auth-secret.age;
-      owner = "root";
-      mode = "0400";
-    };
-    streamer-post-allowed-emails = {
-      file = ./secrets/streamer-post-allowed-emails.age;
-      owner = "root";
-      mode = "0400";
-    };
-    streamer-post-twitch-client-secret = {
-      file = ./secrets/streamer-post-twitch-client-secret.age;
-      owner = "root";
-      mode = "0400";
-    };
-    streamer-post-google-client-secret = {
-      file = ./secrets/streamer-post-google-client-secret.age;
-      owner = "root";
-      mode = "0400";
-    };
-
     # yunirun がアプリ側の秘密 (secrets/<ENV_NAME>.age) を復号する age 秘密鍵。
     #
     # 読むのは converge (root) だけ。ホスト鍵とは別に持つ理由は
