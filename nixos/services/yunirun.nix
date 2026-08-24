@@ -18,6 +18,16 @@
     # secrets/secrets.nix の onepassword と同じもの。
     adminRecipient = "age1t5u8r467lwp2t5d0qjr38va4nmly3wyg5k9fwttaakmu66q4zyvqq58qav";
 
+    # 計測基盤 (メトリクス・ログ・可視化)。
+    #
+    # 外から HTTP を叩いても健全性の確認にはならない。Cloudflare の
+    # stale-while-revalidate により、オリジンが完全に止まっていても 200 が
+    # 返る (実測で確認済み)。オリジンの生死はここで見る。
+    #
+    # すべて 127.0.0.1 にだけ bind する。見るときは ssh のポート転送を使う:
+    #   ssh -N -L 8090:127.0.0.1:8090 yuniruyuni.net
+    observability.enable = true;
+
     # アプリ側の秘密 (secrets/<ENV_NAME>.age) を復号する鍵。
     # 公開鍵は age1uar0qhs2aev0s56rh6ckp6exrt76xk7revwpqfgtkwhgu9w4nu5q9eekgs で、
     # yunirun recipient でも表示できる。
