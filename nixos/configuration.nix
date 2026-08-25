@@ -60,10 +60,10 @@
   #
   # 上限が無く 3.9GB まで育っていた。ログは Loki 側にも入るので、こちらは
   # 直近を追えれば足りる。
-  services.journald.extraConfig = '''
+  services.journald.extraConfig = ''
     SystemMaxUse=1G
     MaxRetentionSec=2week
-  ''';
+  '';
 
   # Timezone
   time.timeZone = "Asia/Tokyo";
