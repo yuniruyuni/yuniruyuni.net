@@ -105,6 +105,17 @@
       PermitRootLogin = "no";
       PasswordAuthentication = false;
       X11Forwarding = false;
+
+      # 対話での認証も閉じる。
+      #
+      # 既定で有効になっているが、入口は公開鍵と opkssh だけで足りている。
+      # パスワード認証を切ってあるので実質的な入口にはなっていないが、
+      # 使っていない認証経路を開けておく理由が無い。
+      #
+      # 22 番には常時スキャンが来ており、認証失敗は 1 日 2000 件を超える
+      # (fail2ban が累計 6905 件を遮断済み)。刺さってはいないが、入口は
+      # 少ないほうがよい。
+      KbdInteractiveAuthentication = false;
     };
   };
 
