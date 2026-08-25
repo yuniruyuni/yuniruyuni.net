@@ -38,8 +38,32 @@
       # No ports open to internet - all access via Cloudflare Tunnel
       allowedTCPPorts = [ ];
       trustedInterfaces = [ "incusbr0" "incusbr1" ];  # Allow Incus container traffic
+
+      # 拒否した接続を記録しない。
+      #
+      # 既定は true で、公開 IP に来るポートスキャンを 1 件ずつ kernel が
+      # 記録する。実測で毎分 220 件以上、10 分間のログの 54% がこれだった
+      # (2227 / 4161 行)。1 日あたり約 32 万行になる。
+      #
+      # 実害が 3 つある:
+      #   - journald が 3.9GB を使い、メモリも 948MB 抱えていた
+      #   - 同じ雑音が Loki にも流れ込み、保存領域と検索を圧迫する
+      #   - 本物のログがこの中に埋もれる
+      #
+      # 開いているポートは無く (allowedTCPPorts = [])、到達は Cloudflare
+      # Tunnel 経由に限っている。拒否そのものは変わらず、記録だけをやめる。
+      logRefusedConnections = false;
     };
   };
+
+  # ログの保存量に上限を置く。
+  #
+  # 上限が無く 3.9GB まで育っていた。ログは Loki 側にも入るので、こちらは
+  # 直近を追えれば足りる。
+  services.journald.extraConfig = '''
+    SystemMaxUse=1G
+    MaxRetentionSec=2week
+  ''';
 
   # Timezone
   time.timeZone = "Asia/Tokyo";
