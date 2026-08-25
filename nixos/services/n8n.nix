@@ -65,7 +65,7 @@
     backend = "podman";
     containers = {
       n8n = {
-        image = "n8nio/n8n:2.34.1";
+        image = "n8nio/n8n:2.37.1";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
         volumes = [
@@ -97,5 +97,28 @@
       };
     };
   };
+
+  # 古い版の image を残さない。
+  #
+  # 更新のたびに新しい版を引くが、古いものは消えずに積み上がっていた。実測で
+  # 23 個 × 約 1.7GB = 約 39GB。2 か月前の版まで残っており、ディスク使用の
+  # 大半がこれだった。
+  #
+  # 世代を残さないのは、公開されている image なのでいつでも引き直せるから。
+  # 手元に置いておく理由が無い。
+  #
+  # 起動した後に走らせる。先に消すと、これから使う版まで対象になる。
+  # 稼働中のものは podman が拒むので、実際に消えるのは使っていない版だけ。
+  systemd.services.podman-n8n.serviceConfig.ExecStartPost = [
+    ("-" + pkgs.writeShellScript "n8n-prune-old-images" ''
+      set -u
+      # 少し待つ。起動直後はまだコンテナが image を掴んでいない。
+      sleep 20
+      for id in $(${pkgs.podman}/bin/podman images --filter reference=n8nio/n8n -q | sort -u); do
+        # 使われていれば podman が拒む。それでよい。
+        ${pkgs.podman}/bin/podman rmi "$id" >/dev/null 2>&1 || true
+      done
+    '')
+  ];
 
 }
