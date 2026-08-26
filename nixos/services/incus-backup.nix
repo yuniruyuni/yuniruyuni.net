@@ -13,6 +13,11 @@
 { config, pkgs, lib, ... }:
 
 let
+
+  # バックアップが成功した事実を計測基盤へ残す道具。ExecStartPost から呼ぶ。
+  backupMetric = import ../pkgs/backup-metric.nix { inherit pkgs; };
+  # 置き場は yunirun の計測基盤が作る。中身が何かは yunirun 側は知らない。
+  textfileDir = "${config.services.yunirun.observability.dir}/textfile";
   # Backup destination on Google Drive
   gdrive_remote = "gdrive";
   gdrive_path_incus = "incus";
@@ -404,6 +409,8 @@ in
     requires = [ "rclone-config-setup.service" ];
     path = [ pkgs.incus pkgs.rclone pkgs.age pkgs.coreutils pkgs.gnugrep ];
     serviceConfig = {
+        # ExecStart が 0 で終わったときにしか動かない。成功の判定を自前で書かずに済む。
+        ExecStartPost = "${backupMetric}/bin/backup-metric ${textfileDir} incus";
       Type = "oneshot";
       ExecStart = "${incusPersonalBackup}/bin/incus-personal-backup";
       TimeoutStartSec = "30min";
@@ -429,6 +436,8 @@ in
     requires = [ "rclone-config-setup.service" ];
     path = [ pkgs.rclone pkgs.age pkgs.coreutils pkgs.gnugrep pkgs.gnutar pkgs.gzip pkgs.systemd ];
     serviceConfig = {
+        # ExecStart が 0 で終わったときにしか動かない。成功の判定を自前で書かずに済む。
+        ExecStartPost = "${backupMetric}/bin/backup-metric ${textfileDir} n8n";
       Type = "oneshot";
       ExecStart = "${n8nBackup}/bin/n8n-backup";
       TimeoutStartSec = "30min";
