@@ -104,6 +104,98 @@ let
     echo "Uploaded: ${gdrive_remote}:${gdrive_path}/$(basename $ENCRYPTED_FILE)"
   '';
 
+  # 復元の演習。
+  #
+  # 取れていることと戻せることは別で、戻したことのないバックアップは
+  # バックアップではなく仮説になる。dump の形式・所有者・GRANT のどれか 1 つが
+  # 噛み合わないだけで、必要になった当日に初めて分かる。
+  #
+  # 作業用の DB へ戻すので稼働中のデータには触れない。作る DB も消す DB も
+  # 名前が _drill で終わるものだけに限っている。
+  #
+  # 暗号文そのものは復号しない。鍵はホストに置いていない (ホストを失っても
+  # 復旧できるようにするため) ので、ここで確かめられるのは「採ったものが
+  # 戻せるか」と「置いたものが在るか」まで。鍵で開けることは人が確かめる。
+  postgresqlRestoreDrill = pkgs.writeShellScriptBin "postgresql-restore-drill" ''
+    set -uo pipefail
+
+    RCLONE_CONFIG="${rclone_config_path}"
+    D=$(mktemp -d)
+    trap 'rm -rf "$D"' EXIT
+
+    ${config.services.yunirun.package}/bin/yunirun databases \
+      | ${pkgs.jq}/bin/jq -r '.[] | [.app,.name,.owner,.socketDir,.ownerPasswordFile] | @tsv' \
+      > "$D/targets"
+
+    FAIL=0
+    COUNT=0
+    while IFS=$'\t' read -r APP DB OWNER SOCK PWFILE; do
+      [ -n "$APP" ] || continue
+      PGPASSWORD=$(${pkgs.gnugrep}/bin/grep -oP '(?<=DB_PASSWORD=).*' "$PWFILE")
+      export PGPASSWORD
+      APPROLE="''${DB}_app"
+      DRILL="''${DB}_drill"
+
+      q() { ${pkgs.postgresql_18}/bin/psql -h "$SOCK" -U "$OWNER" -d "$1" -tAqc "$2" 2>/dev/null; }
+
+      TABLES=$(q "$DB" "select count(*) from pg_stat_user_tables")
+      ROWS=$(q "$DB" "select coalesce(sum(n_live_tup),0) from pg_stat_user_tables")
+
+      if ! ${pkgs.postgresql_18}/bin/pg_dump -h "$SOCK" -U "$OWNER" -d "$DB" \
+             -Fc -f "$D/$APP.dump" 2>"$D/e"; then
+        echo "$APP: 採取に失敗"; ${pkgs.coreutils}/bin/head -3 "$D/e"; FAIL=1; continue
+      fi
+
+      ${pkgs.postgresql_18}/bin/dropdb -h "$SOCK" -U "$OWNER" --if-exists "$DRILL" 2>/dev/null
+      ${pkgs.postgresql_18}/bin/createdb -h "$SOCK" -U "$OWNER" "$DRILL" 2>/dev/null
+      ${pkgs.postgresql_18}/bin/pg_restore -h "$SOCK" -U "$OWNER" -d "$DRILL" "$D/$APP.dump" 2>"$D/e"
+      # grep -c は 0 件でも終了コード 1 を返すので || で受ける。
+      ERRS=$(${pkgs.gnugrep}/bin/grep -c "^pg_restore: error" "$D/e") || ERRS=0
+
+      TABLES2=$(q "$DRILL" "select count(*) from pg_stat_user_tables")
+      ROWS2=$(q "$DRILL" "select coalesce(sum(n_live_tup),0) from pg_stat_user_tables")
+      # 表だけ出来て中身が空でも「戻せた」に見えるので行数まで見る。アプリの
+      # ロールが読めるかも見る。ここが噛み合わないと、復元は成功したのに
+      # アプリだけ動かない状態になる。
+      BAD=$(q "$DRILL" "select count(*) from pg_class c
+              join pg_stat_user_tables s on s.relid=c.oid
+              where not has_table_privilege('$APPROLE', c.oid, 'SELECT')")
+
+      echo "$APP ($DB): 表 $TABLES->$TABLES2 / 行 $ROWS->$ROWS2 / 読めない表 ''${BAD:-?} / error $ERRS"
+      if [ "$TABLES" != "$TABLES2" ] || [ "$ROWS" != "$ROWS2" ] \
+         || [ "''${BAD:-1}" != "0" ] || [ "$ERRS" != "0" ]; then
+        echo "  NG"; ${pkgs.coreutils}/bin/head -4 "$D/e"; FAIL=1
+      fi
+
+      ${pkgs.postgresql_18}/bin/dropdb -h "$SOCK" -U "$OWNER" "$DRILL" 2>/dev/null
+      COUNT=$((COUNT + 1))
+    done < "$D/targets"
+
+    if [ "$COUNT" -eq 0 ]; then
+      echo "対象の DB が 1 つも無い"
+      exit 1
+    fi
+
+    # 置いたものが在るかも見る。採って戻せても、上がっていなければ意味が無い。
+    echo "保管先を確認..."
+    NEWEST=$(${pkgs.rclone}/bin/rclone --config "$RCLONE_CONFIG" \
+      lsjson ${gdrive_remote}:${gdrive_path}/ 2>/dev/null \
+      | ${pkgs.jq}/bin/jq -r 'sort_by(.ModTime) | last | "\(.Name) \(.Size)"')
+    if [ -z "$NEWEST" ] || [ "$NEWEST" = "null null" ]; then
+      echo "  保管先に何も無い"; FAIL=1
+    else
+      echo "  最新: $NEWEST"
+      SIZE=$(echo "$NEWEST" | ${pkgs.gawk}/bin/awk '{print $2}')
+      # 空に近いものが上がっていたら、取れているように見えて中身が無い。
+      if [ "''${SIZE:-0}" -lt 1024 ]; then
+        echo "  中身が小さすぎる"; FAIL=1
+      fi
+    fi
+
+    [ "$FAIL" = "0" ] || exit 1
+    echo "$COUNT 個の DB を戻せることを確かめた。"
+  '';
+
   # Restore script
   postgresqlRestore = pkgs.writeShellScriptBin "postgresql-restore" ''
     set -euo pipefail
@@ -173,6 +265,7 @@ in
   environment.systemPackages = [
     postgresqlBackup
     postgresqlRestore
+    postgresqlRestoreDrill
   ];
 
   # Daily backup timer
@@ -194,11 +287,38 @@ in
     requires = [ "rclone-config-setup.service" ];
     path = [ pkgs.postgresql_18 pkgs.rclone pkgs.age pkgs.coreutils pkgs.gzip pkgs.gnutar pkgs.jq pkgs.gnugrep ];
     serviceConfig = {
-        # ExecStart が 0 で終わったときにしか動かない。成功の判定を自前で書かずに済む。
-        ExecStartPost = "${backupMetric}/bin/backup-metric ${textfileDir} postgresql";
       Type = "oneshot";
       ExecStart = "${postgresqlBackup}/bin/postgresql-backup";
       TimeoutStartSec = "30min";
+      # ExecStart が 0 で終わったときにしか動かない。成功の判定を自前で書かずに済む。
+      ExecStartPost = "${backupMetric}/bin/backup-metric ${textfileDir} postgresql";
+    };
+  };
+
+  # 演習は毎日。1 度きりでは「あの日は戻せた」以上のことを言えない。
+  #
+  # バックアップと同じ頻度にしてあるので、指標も規則も既にあるものをそのまま
+  # 使える (36 時間途絶えたら鳴る)。
+  systemd.timers.postgresql-restore-drill = {
+    description = "Daily restore drill";
+    wantedBy = [ "timers.target" ];
+    timerConfig = {
+      OnCalendar = "daily";
+      Persistent = true;
+      RandomizedDelaySec = "1h";
+    };
+  };
+
+  systemd.services.postgresql-restore-drill = {
+    description = "Verify PostgreSQL backups can actually be restored";
+    # 同時に走ると DB を取り合う。
+    after = [ "postgresql-backup.service" ];
+    path = [ pkgs.postgresql_18 pkgs.rclone pkgs.coreutils pkgs.jq pkgs.gnugrep pkgs.gawk ];
+    serviceConfig = {
+      Type = "oneshot";
+      ExecStart = "${postgresqlRestoreDrill}/bin/postgresql-restore-drill";
+      TimeoutStartSec = "30min";
+      ExecStartPost = "${backupMetric}/bin/backup-metric ${textfileDir} restore-drill";
     };
   };
 }
