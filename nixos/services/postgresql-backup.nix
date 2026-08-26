@@ -19,6 +19,11 @@
 { config, pkgs, ... }:
 
 let
+
+  # バックアップが成功した事実を計測基盤へ残す道具。ExecStartPost から呼ぶ。
+  backupMetric = import ../pkgs/backup-metric.nix { inherit pkgs; };
+  # 置き場は yunirun の計測基盤が作る。中身が何かは yunirun 側は知らない。
+  textfileDir = "${config.services.yunirun.observability.dir}/textfile";
   # Backup destination on Google Drive
   gdrive_remote = "gdrive";
   gdrive_path = "postgresql";
@@ -189,6 +194,8 @@ in
     requires = [ "rclone-config-setup.service" ];
     path = [ pkgs.postgresql_18 pkgs.rclone pkgs.age pkgs.coreutils pkgs.gzip pkgs.gnutar pkgs.jq pkgs.gnugrep ];
     serviceConfig = {
+        # ExecStart が 0 で終わったときにしか動かない。成功の判定を自前で書かずに済む。
+        ExecStartPost = "${backupMetric}/bin/backup-metric ${textfileDir} postgresql";
       Type = "oneshot";
       ExecStart = "${postgresqlBackup}/bin/postgresql-backup";
       TimeoutStartSec = "30min";
