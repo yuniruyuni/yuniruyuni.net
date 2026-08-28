@@ -111,11 +111,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1787887859,
-        "narHash": "sha256-r/vw9DVDM56pJvQTwf6EC+QILhS0SopZVp4QHhd76vI=",
+        "lastModified": 1787905430,
+        "narHash": "sha256-EKLwnGnAyBwMQN77JR1NYnHP2erhAjLbt3Vn+aZI11U=",
         "owner": "yuniruyuni",
         "repo": "yunirun",
-        "rev": "2e1913259610b3b39aceef69160322e482666908",
+        "rev": "ff3c1c4f9a3e4102c0e376e429d1cbeb5506f04b",
         "type": "github"
       },
       "original": {
