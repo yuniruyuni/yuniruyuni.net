@@ -76,6 +76,18 @@
     isNormalUser = true;
     description = "yuniruyuni";
     extraGroups = [ "wheel" "podman" "incus-admin" ];
+    # 常駐させる。ログインの有無で切り替わらないようにするため。
+    #
+    # switch-to-configuration は user@<uid>.service が動いていると、その
+    # ユーザの unit を読み直そうとして logind に GID を尋ねる。ssh を抜けた
+    # 直後はまだ user@1000 が生きている一方で logind 側の登録は消えており、
+    #
+    #   Error: Failed to get GID for yuniruyuni
+    #   Unknown object '/org/freedesktop/login1/user/_1000'
+    #
+    # で反映そのものが失敗する。実際に 2 回落ちた。linger を入れると
+    # user@1000 が常に居るので、この窓が無くなる。
+    linger = true;
     # 個人端末からの手動操作・フル再セットアップ用。
     #
     # GitHub Actions からのデプロイはここではなく opkssh (services/opkssh.nix) が
