@@ -19,6 +19,12 @@ locals {
     wif_provider_id     = "github"
     # GitHub repo that is allowed to impersonate the CI SAs.
     github_repo = "yuniruyuni/yuniruyuni.net"
+    # Repository part of the GitHub OIDC `sub` claim. The repo has opted into
+    # the immutable subject claim, so it is `<owner>@<owner_id>/<repo>@<repo_id>`
+    # rather than the name-only form. The same string is matched exactly by
+    # opkssh in nixos/services/opkssh.nix (used by apply-nixos.yml, which runs
+    # in the same `apply` environment), so it is verified in production.
+    github_sub_prefix = "repo:yuniruyuni@85034901/yuniruyuni.net@1181770564"
   }
 }
 
@@ -30,6 +36,7 @@ resource "google_storage_bucket" "terraform_state" {
   name                        = local.ci.state_bucket
   location                    = local.ci.state_bucket_region
   uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
   force_destroy               = false
 
   versioning {
@@ -137,14 +144,32 @@ resource "google_iam_workload_identity_pool_provider" "ci_github" {
   }
 }
 
-resource "google_service_account_iam_member" "workload_identity_user_apply" {
+# Each SA can only be impersonated by jobs running in its GitHub environment.
+#
+# GitHub puts `:environment:<name>` at the end of `sub` for any job that
+# declares `environment:`, so binding on google.subject (= assertion.sub)
+# pins both the repository (by immutable id) and the environment:
+#
+# - apply SA: only `environment: apply` (apply-terraform.yml). The apply
+#   environment only accepts deployments from `main`, so PR code — including
+#   plan jobs, which run PR code with an OIDC token — cannot reach roles/editor
+#   / iam.securityAdmin.
+# - plan SA: only `environment: plan` (plan-terraform.yml).
+#
+# Previously both SAs were bound to attribute.repository, which any job in the
+# repository satisfies.
+#
+# NOTE: changing a workflow's `environment:` (or the repo's sub customization)
+# breaks these bindings. Update them together.
+
+resource "google_service_account_iam_member" "workload_identity_user_apply_env" {
   service_account_id = google_service_account.terraform_github.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.ci.name}/attribute.repository/${local.ci.github_repo}"
+  member             = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.ci.name}/subject/${local.ci.github_sub_prefix}:environment:apply"
 }
 
-resource "google_service_account_iam_member" "workload_identity_user_plan" {
+resource "google_service_account_iam_member" "workload_identity_user_plan_env" {
   service_account_id = google_service_account.terraform_github_plan.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.ci.name}/attribute.repository/${local.ci.github_repo}"
+  member             = "principal://iam.googleapis.com/${google_iam_workload_identity_pool.ci.name}/subject/${local.ci.github_sub_prefix}:environment:plan"
 }
