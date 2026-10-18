@@ -39,7 +39,7 @@ yuniruyuni.net のインフラストラクチャを管理するリポジトリ�
 |--------------|----------|------|
 | `validate-terraform` | PR / main push (`*.tf`, `*-terraform*.yml`) | `terraform fmt -check` + `terraform validate` |
 | `plan-terraform` | PR (`*.tf`, `*-terraform*.yml`) | `terraform plan` → PRコメント (フォークPRはスキップ) |
-| `trigger-plan` | PRコメント `/plan` | Write権限者がフォークPRのplanを手動トリガー |
+| `trigger-plan` | PRコメント `/plan <commit SHA>` | Write権限者が、レビューした commit を SHA で指定して plan を再実行 (head と一致しなければ拒否、フォークPRは拒否) |
 | `apply-terraform` | main push (`*.tf`) | `terraform apply` (apply environment) |
 | `validate-nixos` | PR / main push (`nixos/**`) | `nix flake check` + NixOS構成ビルド |
 | `apply-nixos` | main push (`nixos/**`) | NixOS構成をVPSにデプロイ (apply environment) |

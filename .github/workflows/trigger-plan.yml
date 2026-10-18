@@ -1,53 +1,127 @@
 name: Terraform Plan (Comment)
 
+# `/plan <commit-sha>` を PR にコメントすると、その commit で terraform plan を
+# 走らせる。
+#
+# plan は plan environment の secrets と GCP の OIDC トークンを持って PR の
+# コードを実行する (provider や external data source は plan 時にも動く)。
+# したがって「誰が読んだコードを実行するか」を固定することが要になる。
+#
+# - SHA をコメントに書かせる: 実行時に PR の head を引き直すと、コメントの後に
+#   push された未レビューの commit が走る。コメントに書かれた SHA を checkout
+#   し、さらに認可時点の head と一致することを確かめる。コメントの後に push
+#   されていれば head と食い違うので拒否する。一致した後に push されても、
+#   checkout するのはコメントの SHA なので影響しない。
+# - フォーク PR は拒否する: plan environment の secrets をフォークのコードに
+#   渡さない (plan-terraform.yml と同じ方針)。
+# - 認可は secrets も environment も持たない job で済ませる: 条件を満たさない
+#   コメントで plan environment の承認待ちを作らない。
+
 on:
   issue_comment:
     types: [created]
 
-permissions:
-  contents: read
-  pull-requests: write
-  id-token: write
+permissions: {}
 
 jobs:
-  plan:
-    name: Plan
+  authorize:
+    name: Authorize
     if: |
       github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/plan')
+      startsWith(github.event.comment.body, '/plan')
     runs-on: ubuntu-latest
-    environment: plan
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
 
     steps:
-      - name: Check permissions
+      - name: Check commenter, PR origin and commit
+        id: check
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comment = context.payload.comment;
+
+            const reject = async (reason) => {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number,
+                body: `Terraform plan was not run: ${reason}`,
+              });
+              core.setFailed(reason);
+            };
+
             const { data: perm } = await github.rest.repos.getCollaboratorPermissionLevel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              username: context.payload.comment.user.login
+              owner, repo, username: comment.user.login,
             });
             if (!['admin', 'write'].includes(perm.permission)) {
+              // 権限の無い人のコメントには返信しない (スパムの増幅を避ける)。
               core.setFailed('Insufficient permissions to trigger plan');
+              return;
             }
 
-      - name: Get PR ref
-        id: pr
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
-        with:
-          script: |
-            const { data: pr } = await github.rest.pulls.get({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              pull_number: context.issue.number
-            });
-            core.setOutput('sha', pr.head.sha);
+            const match = comment.body.trim().match(/^\/plan\s+([0-9a-f]{40})$/);
+            if (!match) {
+              await reject(
+                'usage is `/plan <full 40-character commit SHA>`. ' +
+                'Name the exact commit you reviewed.'
+              );
+              return;
+            }
+            const sha = match[1];
 
-      - name: Checkout PR code
+            const { data: pr } = await github.rest.pulls.get({
+              owner, repo, pull_number: issue_number,
+            });
+            if (pr.state !== 'open') {
+              await reject('the pull request is not open.');
+              return;
+            }
+            const headRepo = pr.head.repo ? pr.head.repo.full_name : null;
+            if (headRepo !== `${owner}/${repo}`) {
+              await reject('plans are not run for pull requests from forks.');
+              return;
+            }
+            if (pr.head.sha !== sha) {
+              await reject(
+                `\`${sha}\` is not the head of this pull request ` +
+                `(head is \`${pr.head.sha}\`). Review the new commits and ` +
+                'comment again with the SHA you reviewed.'
+              );
+              return;
+            }
+
+            core.setOutput('sha', sha);
+
+  plan:
+    name: Plan
+    needs: authorize
+    runs-on: ubuntu-latest
+    environment: plan
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+
+    steps:
+      - name: Checkout reviewed commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ steps.pr.outputs.sha }}
+          ref: ${{ needs.authorize.outputs.sha }}
+          persist-credentials: false
+
+      - name: Verify checked-out commit
+        env:
+          EXPECTED_SHA: ${{ needs.authorize.outputs.sha }}
+        run: |
+          actual="$(git rev-parse HEAD)"
+          if [ "$actual" != "$EXPECTED_SHA" ]; then
+            echo "Checked out $actual, expected $EXPECTED_SHA" >&2
+            exit 1
+          fi
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
@@ -76,6 +150,9 @@ jobs:
           TF_VAR_gcp_project_id: ${{ secrets.GCP_PROJECT_ID }}
           TF_VAR_owner_email: ${{ secrets.OWNER_EMAIL }}
           TF_VAR_google_oauth_client_id: ${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+          # Required: cloudflare_zero_trust_access_identity_provider.google sets
+          # config.client_secret from it, and the variable has no default. It is
+          # scoped to this step only, which runs nothing but the reviewed commit.
           TF_VAR_google_oauth_client_secret: ${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
         continue-on-error: true
 
@@ -85,11 +162,14 @@ jobs:
           PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
           PLAN_OUTCOME: ${{ steps.plan.outcome }}
           COMMENTER: ${{ github.event.comment.user.login }}
+          PLAN_SHA: ${{ needs.authorize.outputs.sha }}
         with:
           script: |
             const marker = '<!-- terraform-plan-comment -->';
             const body = `${marker}
             #### Terraform Plan \`${process.env.PLAN_OUTCOME}\` (triggered by /plan)
+
+            Commit: \`${process.env.PLAN_SHA}\`
 
             <details><summary>Show Plan</summary>
 
