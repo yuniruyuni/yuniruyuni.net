@@ -44,6 +44,8 @@ yuniruyuni.net のインフラストラクチャを管理するリポジトリ�
 | `validate-nixos` | PR / main push (`nixos/**`) | `nix flake check` + NixOS構成ビルド |
 | `apply-nixos` | main push (`nixos/**`) | NixOS構成をVPSにデプロイ (apply environment) |
 
+GCP の CI SA は Workload Identity の `sub` (immutable subject claim) で environment ごとに束縛している: apply SA は `environment: apply` の job だけ、plan SA は `environment: plan` の job だけが借りられる (`ci.tf`)。workflow の `environment:` を変えるときは `ci.tf` も同時に直すこと。
+
 `main` は GitHub ruleset で保護し、PR 経由と 1 approval を要求する。単独管理リポジトリのため owner は PR ruleset を bypass できる。`apply` environment は `main` ブランチからのデプロイのみ許可し、merge 後の追加 reviewer 承認は要求しない。
 
 ## 新規環境セットアップ / DR

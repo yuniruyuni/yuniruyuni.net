@@ -40,12 +40,14 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'This PR is from a fork. Terraform plan is skipped for security.\nUse `/plan` comment to trigger plan after code review.'
+              body: 'This PR is from a fork. Terraform plan is not run for fork PRs, so plan environment secrets never reach fork code.'
             })
 
       - name: Checkout
         if: steps.fork-check.outputs.is_fork == 'false'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Authenticate to Google Cloud
         if: steps.fork-check.outputs.is_fork == 'false'

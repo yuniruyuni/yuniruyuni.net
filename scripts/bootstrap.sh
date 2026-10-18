@@ -29,6 +29,10 @@ PROJECT="${PROJECT:-yuniruyuni-net}"
 REGION="${REGION:-asia-northeast1}"
 GITHUB_ORG="${GITHUB_ORG:-yuniruyuni}"
 GITHUB_REPO="${GITHUB_REPO:-yuniruyuni.net}"
+# Numeric ids in the immutable OIDC subject claim (see ci.tf github_sub_prefix).
+GITHUB_OWNER_ID="${GITHUB_OWNER_ID:-85034901}"
+GITHUB_REPO_ID="${GITHUB_REPO_ID:-1181770564}"
+SUB_PREFIX="repo:${GITHUB_ORG}@${GITHUB_OWNER_ID}/${GITHUB_REPO}@${GITHUB_REPO_ID}"
 
 BUCKET="${PROJECT}-terraform-state"
 APPLY_SA_ID="terraform-github"
@@ -151,17 +155,21 @@ fi
 POOL_NAME="$(gcloud iam workload-identity-pools describe "$POOL_ID" \
   --project="$PROJECT" --location=global --format='value(name)')"
 
-log "binding GitHub repo ${GITHUB_ORG}/${GITHUB_REPO} to apply SA via WIF"
+# Each SA is bound to exactly one GitHub environment (see ci.tf).
+APPLY_PRINCIPAL="principal://iam.googleapis.com/${POOL_NAME}/subject/${SUB_PREFIX}:environment:apply"
+PLAN_PRINCIPAL="principal://iam.googleapis.com/${POOL_NAME}/subject/${SUB_PREFIX}:environment:plan"
+
+log "binding ${SUB_PREFIX} (environment: apply) to apply SA via WIF"
 gcloud iam service-accounts add-iam-policy-binding "$APPLY_SA" \
   --project="$PROJECT" \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/${GITHUB_ORG}/${GITHUB_REPO}" >/dev/null
+  --member="$APPLY_PRINCIPAL" >/dev/null
 
-log "binding GitHub repo ${GITHUB_ORG}/${GITHUB_REPO} to plan SA via WIF"
+log "binding ${SUB_PREFIX} (environment: plan) to plan SA via WIF"
 gcloud iam service-accounts add-iam-policy-binding "$PLAN_SA" \
   --project="$PROJECT" \
   --role="roles/iam.workloadIdentityUser" \
-  --member="principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/${GITHUB_ORG}/${GITHUB_REPO}" >/dev/null
+  --member="$PLAN_PRINCIPAL" >/dev/null
 
 # ============================================================================
 # Phase B: terraform init + import
@@ -232,10 +240,10 @@ import_if_missing 'google_iam_workload_identity_pool.ci' \
   "projects/${PROJECT}/locations/global/workloadIdentityPools/${POOL_ID}"
 import_if_missing 'google_iam_workload_identity_pool_provider.ci_github' \
   "projects/${PROJECT}/locations/global/workloadIdentityPools/${POOL_ID}/providers/${PROVIDER_ID}"
-import_if_missing 'google_service_account_iam_member.workload_identity_user_apply' \
-  "projects/${PROJECT}/serviceAccounts/${APPLY_SA} roles/iam.workloadIdentityUser principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/${GITHUB_ORG}/${GITHUB_REPO}"
-import_if_missing 'google_service_account_iam_member.workload_identity_user_plan' \
-  "projects/${PROJECT}/serviceAccounts/${PLAN_SA} roles/iam.workloadIdentityUser principalSet://iam.googleapis.com/${POOL_NAME}/attribute.repository/${GITHUB_ORG}/${GITHUB_REPO}"
+import_if_missing 'google_service_account_iam_member.workload_identity_user_apply_env' \
+  "projects/${PROJECT}/serviceAccounts/${APPLY_SA} roles/iam.workloadIdentityUser ${APPLY_PRINCIPAL}"
+import_if_missing 'google_service_account_iam_member.workload_identity_user_plan_env' \
+  "projects/${PROJECT}/serviceAccounts/${PLAN_SA} roles/iam.workloadIdentityUser ${PLAN_PRINCIPAL}"
 
 # ============================================================================
 # Summary
