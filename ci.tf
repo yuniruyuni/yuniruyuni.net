@@ -154,7 +154,7 @@ resource "google_iam_workload_identity_pool_provider" "ci_github" {
 #   environment only accepts deployments from `main`, so PR code — including
 #   plan jobs, which run PR code with an OIDC token — cannot reach roles/editor
 #   / iam.securityAdmin.
-# - plan SA: only `environment: plan` (plan-terraform.yml, trigger-plan.yml).
+# - plan SA: only `environment: plan` (plan-terraform.yml).
 #
 # Previously both SAs were bound to attribute.repository, which any job in the
 # repository satisfies.

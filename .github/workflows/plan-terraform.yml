@@ -1,5 +1,11 @@
 name: Terraform Plan
 
+# plan は PR の push (pull_request) だけで起動する。run はその push の commit に
+# 固定され、plan environment の承認画面にも同じ commit が出るので、承認した
+# commit 以外が plan environment の secrets と OIDC トークンを持って動くことはない。
+# コメントで plan を起動する経路は持たない (承認後に別の commit が走る余地を作るため)。
+# 同じ commit で plan をやり直すときは Actions の Re-run を使う。
+
 on:
   pull_request:
     paths:
@@ -7,50 +13,46 @@ on:
       - '.terraform.lock.hcl'
       - '.github/workflows/*-terraform*.yml'
 
-permissions:
-  contents: read
-  pull-requests: write
-  id-token: write
+permissions: {}
 
 jobs:
-  plan:
-    name: Plan
+  # フォーク PR は plan environment に入らせない。job レベルで弾くので承認待ちも作らない。
+  fork-notice:
+    name: Fork PR notice
+    if: github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
-    environment: plan
+    permissions:
+      pull-requests: write
 
     steps:
-      - name: Check if fork PR
-        id: fork-check
-        env:
-          PR_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          BASE_REPO: ${{ github.repository }}
-        run: |
-          if [ "$PR_REPO" != "$BASE_REPO" ]; then
-            echo "is_fork=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "is_fork=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Comment skip message for fork PRs
-        if: steps.fork-check.outputs.is_fork == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
-            github.rest.issues.createComment({
+            await github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: 'This PR is from a fork. Terraform plan is not run for fork PRs, so plan environment secrets never reach fork code.'
             })
 
+  plan:
+    name: Plan
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: plan
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+
+    steps:
       - name: Checkout
-        if: steps.fork-check.outputs.is_fork == 'false'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Authenticate to Google Cloud
-        if: steps.fork-check.outputs.is_fork == 'false'
         id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
         with:
@@ -58,17 +60,14 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
       - name: Setup Terraform
-        if: steps.fork-check.outputs.is_fork == 'false'
         uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
           terraform_version: "v1.16.6"
 
       - name: Terraform Init
-        if: steps.fork-check.outputs.is_fork == 'false'
         run: terraform init
 
       - name: Terraform Plan
-        if: steps.fork-check.outputs.is_fork == 'false'
         id: plan
         run: terraform plan -no-color -lock=false -out=tfplan
         env:
@@ -88,7 +87,6 @@ jobs:
         continue-on-error: true
 
       - name: Comment PR with Plan
-        if: steps.fork-check.outputs.is_fork == 'false'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           PLAN_OUTPUT: ${{ steps.plan.outputs.stdout }}
@@ -134,5 +132,5 @@ jobs:
             }
 
       - name: Plan Status
-        if: steps.fork-check.outputs.is_fork == 'false' && steps.plan.outcome == 'failure'
+        if: steps.plan.outcome == 'failure'
         run: exit 1

@@ -38,8 +38,7 @@ yuniruyuni.net のインフラストラクチャを管理するリポジトリ�
 | ワークフロー | トリガー | 内容 |
 |--------------|----------|------|
 | `validate-terraform` | PR / main push (`*.tf`, `*-terraform*.yml`) | `terraform fmt -check` + `terraform validate` |
-| `plan-terraform` | PR (`*.tf`, `*-terraform*.yml`) | `terraform plan` → PRコメント (フォークPRはスキップ) |
-| `trigger-plan` | PRコメント `/plan <commit SHA>` | Write権限者が、レビューした commit を SHA で指定して plan を再実行 (head と一致しなければ拒否、フォークPRは拒否) |
+| `plan-terraform` | PR (`*.tf`, `*-terraform*.yml`) | `terraform plan` → PRコメント (plan environment の承認が必要。フォークPRは job ごとスキップ。同じ commit で再実行するときは Actions の Re-run) |
 | `apply-terraform` | main push (`*.tf`) | `terraform apply` (apply environment) |
 | `validate-nixos` | PR / main push (`nixos/**`) | `nix flake check` + NixOS構成ビルド |
 | `apply-nixos` | main push (`nixos/**`) | NixOS構成をVPSにデプロイ (apply environment) |
