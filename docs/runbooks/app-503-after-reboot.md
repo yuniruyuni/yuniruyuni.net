@@ -19,7 +19,7 @@ yunirun ≥ `2109871d` (yunirun PR #59) では converge / 起動時に自己修�
   `potentially insufficient UIDs or GIDs available in user namespace`。
   非 root の image (distroless nonroot の uid 65532、nginx など) だけが落ち、
   root で動く image は動くので、一部のアプリだけが落ちる。
-- 外形監視 (`.github/workflows/uptime.yml`) が `outage` issue を開く。
+- 外形監視 (このリポジトリの外で管理) が通知する。
   起動 5 分後の `boot-selfcheck` (nixos/services/boot-selfcheck.nix) も n8n に通知する
   (n8n が戻っていれば)。
 
@@ -105,4 +105,4 @@ journalctl -u yunirun-converge.service -b -n 100
   doctor に `podman/user-namespace-is-fixed-when-created` が加わった。
 - `nixos/services/boot-selfcheck.nix`: 起動 5 分後と以後 1 時間ごとに doctor と
   HAProxy の backend を確かめ、失敗したら n8n の alert webhook に通知する。
-  n8n は同じホストにいるので、主たる通知経路は VPS の外の `uptime.yml` (#245)。
+  n8n は同じホストにいるので、主たる通知経路はこのリポジトリの外で管理している外形監視。
