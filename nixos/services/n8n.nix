@@ -47,6 +47,13 @@
     #
     # linger 無しでは podman が cgroup 管理を systemd から cgroupfs へ
     # フォールバックする警告を出すが、これは警告であって起動は妨げない。
+    #
+    # NixOS 26.05 の oci-containers は unit に常に Delegate=true を付けるように
+    # なり、rootless で linger が無いと評価時に警告を出す (上流のテストは
+    # conmon でも linger = true で回している)。Delegate=true の下でなら
+    # conmon + linger = true でも READY が届く可能性はあるが、本番で確かめて
+    # いないため、OS の更新とは切り離して別途試す。それまでは実績のある
+    # false を維持し、この警告は意図したものとして受け入れる。
     linger = false;
   };
   users.groups.n8n = { };

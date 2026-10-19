@@ -18,7 +18,9 @@
 # クライアント (GitHub Actions) 側も同じ v0.16.0 に揃えている。
 #
 # 式は nixpkgs master の pkgs/by-name/op/opkssh/package.nix をそのまま取り込んだもの。
-# nixpkgs 側が 0.16.0 以降を 25.11 に入れたらこのファイルごと削除してよい。
+# nixpkgs 側の stable が 0.16.0 以降になったらこのファイルごと削除してよい。
+# (26.05 の pkgs.opkssh は 0.14.0 で、まだ足りない。0.14.0 が principals を
+# 埋めるかは確認していないので、client と揃えた 0.16.0 を使い続ける。)
 {
   lib,
   buildGoModule,

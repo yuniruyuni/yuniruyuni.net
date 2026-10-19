@@ -3,6 +3,21 @@
   "extends": [
     "local>yuniruyuni/renovate-config"
   ],
+  "nix": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "NixOS flake inputs (nixpkgs / agenix / yunirun). Merging deploys to the production VPS via apply-nixos, so keep them separate from other updates and review the NixOS Validate build before merging at a quiet time",
+      "matchManagers": [
+        "nix"
+      ],
+      "groupName": "nix flake inputs",
+      "addLabels": [
+        "nixos"
+      ]
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",

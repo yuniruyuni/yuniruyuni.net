@@ -160,6 +160,18 @@
     "net.ipv4.conf.default.send_redirects" = 0;
   };
 
+  # D-Bus は従来の dbus-daemon のまま据え置く。
+  #
+  # NixOS 26.05 で既定が dbus-broker に変わった。実装の切り替えは稼働中には
+  # 安全に行えず、reboot が要る (release notes: `nixos-rebuild boot` して再起動)。
+  # apply-nixos は `nixos-rebuild switch` で反映するので、OS の更新と同時に
+  # 切り替えると稼働中に D-Bus を入れ替えることになる。
+  #
+  # 26.05 からは switch inhibitor がこの値を記録するため、後で "broker" へ
+  # 変えると switch が拒否される。移行するときは、この行を消した上で VPS 上で
+  # `nixos-rebuild boot --flake .#vps` と再起動を計画して行うこと。
+  services.dbus.implementation = "dbus";
+
   # Enable automatic garbage collection
   nix.gc = {
     automatic = true;

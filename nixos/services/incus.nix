@@ -7,7 +7,17 @@
   # Enable Incus
   virtualisation.incus = {
     enable = true;
-    package = pkgs.incus;
+    # LTS 系列 (7.0.x) に固定する。
+    #
+    # NixOS 25.11 の pkgs.incus は 7.0.0 で、26.05 では feature release の
+    # 7.5.x に進む。Incus はアップグレード時に自身の DB スキーマを一方向に
+    # 移行するので、OS の更新と同時に 7.5 へ上げると、問題が出て前の世代へ
+    # 戻したときに 7.0 の incusd が新しいスキーマを読めず起動しなくなる。
+    #
+    # 26.05 の pkgs.incus-lts は 7.0.1 で、稼働中の 7.0.0 と同じ系列。
+    # OS の更新ではパッチ更新に留め、ロールバックの経路を残す。
+    # feature release に戻すときは別の変更として行うこと (戻せない移行になる)。
+    package = pkgs.incus-lts;
     ui.enable = true;  # Optional: Web UI
   };
 
