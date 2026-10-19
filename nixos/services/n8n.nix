@@ -116,6 +116,26 @@
   #
   # 起動した後に走らせる。先に消すと、これから使う版まで対象になる。
   # 稼働中のものは podman が拒むので、実際に消えるのは使っていない版だけ。
+  # 停止時の exit 143 を成功として扱う。
+  #
+  # oci-containers の podman backend は conmon を main process にする
+  # (Type=notify, --sdnotify=conmon)。`systemctl stop` で preStop の
+  # `podman stop` がコンテナに SIGTERM を送ると、n8n (node) は 128+15 = 143 で
+  # 終了し、conmon がその値で exit する。systemd は signal による終了なら
+  # 成功扱いにするが、これは通常の exit code なので failed になる。
+  #
+  # 実際に 26.05 への switch では、switch 中に起動された n8n-backup が
+  # バックアップのために podman-n8n を stop し、この 143 で failed になって
+  # switch-to-configuration が exit 4 を返した。毎晩のバックアップでも
+  # 同じ理由で failed が残る (apply-nixos.yml が reset-failed しているのは
+  # このため)。
+  #
+  # oci-containers にはこれを指定するオプションが無く、生成される unit の
+  # serviceConfig を直接足すのが想定された拡張方法 (モジュールのコメント参照)。
+  # 動作中に外から SIGTERM で落とされた場合も成功扱いになり Restart=on-failure
+  # が効かなくなるが、そのような停止経路はここには無い。
+  systemd.services.podman-n8n.serviceConfig.SuccessExitStatus = [ 0 143 ];
+
   systemd.services.podman-n8n.serviceConfig.ExecStartPost = [
     ("-" + pkgs.writeShellScript "n8n-prune-old-images" ''
       set -u
