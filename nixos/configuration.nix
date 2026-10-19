@@ -105,6 +105,10 @@
   security.sudo.wheelNeedsPassword = false;
 
   # SSH brute-force protection
+  #
+  # 22 番をインターネットに開けるのをやめた (下の openFirewall = false) ので、
+  # 公開 IP からの総当たりはもう届かない。cloudflared 経由の接続は localhost
+  # から来るため、ここで遮断の対象にもならない。外す理由も特に無いので残す。
   services.fail2ban = {
     enable = true;
     maxretry = 5;
@@ -114,6 +118,23 @@
   # SSH configuration
   services.openssh = {
     enable = true;
+
+    # 22 番をインターネットに公開しない。
+    #
+    # 既定 (openFirewall = true) では allowedTCPPorts = [ ] とは別に 22 番が
+    # 開いており、公開 IP に常時スキャンと総当たりが来ていた。
+    #
+    # SSH の入口は Cloudflare Tunnel だけにする。CI (apply-nixos.yml と各アプリの
+    # deploy-yunirun.yml) も手元の端末も `cloudflared access ssh` で
+    # ssh.yuniruyuni.net に入り、トンネルの ingress (cloudflare.tf) は
+    # ssh://localhost:22 へ繋ぐ。loopback はファイアウォールを通らないので、
+    # この経路は閉じない。sshd 自体は従来どおり全アドレスで listen している。
+    #
+    # 緊急時 (cloudflared やトンネルが壊れて入れないとき) の入口は
+    # Contabo の VNC コンソール。そこから `nixos-rebuild switch --rollback`
+    # などで戻す。トンネルが壊れると revert PR も apply-nixos で配れない点に注意。
+    openFirewall = false;
+
     settings = {
       PermitRootLogin = "no";
       PasswordAuthentication = false;
@@ -125,9 +146,9 @@
       # パスワード認証を切ってあるので実質的な入口にはなっていないが、
       # 使っていない認証経路を開けておく理由が無い。
       #
-      # 22 番には常時スキャンが来ており、認証失敗は 1 日 2000 件を超える
-      # (fail2ban が累計 6905 件を遮断済み)。刺さってはいないが、入口は
-      # 少ないほうがよい。
+      # 22 番を公開していた頃は常時スキャンが来ており、認証失敗は 1 日 2000 件を
+      # 超えていた (fail2ban が累計 6905 件を遮断済み)。刺さってはいないが、
+      # 入口は少ないほうがよい。
       KbdInteractiveAuthentication = false;
     };
   };
