@@ -1,0 +1,126 @@
+name: Uptime
+
+# VPS の外から公開ホスト名の生死を見る。Grafana / n8n による監視は VPS 上で
+# 動いているので、VPS ごと落ちると通知も一緒に消える。こちらは GitHub の
+# インフラで動くので、その場合でも気付ける。
+#
+# 通知は `outage` ラベルの issue 1 本で行う:
+#   - 落ちたら issue を開く (既に開いていれば、落ちている集合が変わったときだけコメント)
+#   - 全部戻ったらコメントして close
+# 状態が変わった run だけ job を失敗させる。毎回失敗させると、落ちている間
+# 10 分ごとに失敗通知メールが届くため。継続中の状態は開いている issue が表す。
+#
+# Cloudflare の Health Checks は Pro 以上のゾーンでしか使えない (このゾーンは Free)。
+
+on:
+  schedule:
+    # 毎時 0 分は Actions の schedule が混んで遅れやすいのでずらす。
+    - cron: '7-59/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Probe endpoints
+        id: probe
+        run: scripts/uptime-probe.sh
+
+      - name: Update outage issue
+        id: issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        env:
+          DOWN: ${{ steps.probe.outputs.down }}
+          REPORT: ${{ steps.probe.outputs.report }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const label = 'outage';
+            const down = process.env.DOWN ? process.env.DOWN.split(',') : [];
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+            const body = (headline) =>
+              `${headline}\n\n${process.env.REPORT}\n[Run](${runUrl})\n\n<!-- uptime-down:${down.join(',')} -->`;
+
+            try {
+              await github.rest.issues.getLabel({ owner, repo, name: label });
+            } catch (e) {
+              if (e.status !== 404) throw e;
+              await github.rest.issues.createLabel({
+                owner, repo, name: label, color: 'd73a4a',
+                description: 'Opened and closed automatically by the Uptime workflow',
+              });
+            }
+
+            const open = await github.rest.issues.listForRepo({
+              owner, repo, state: 'open', labels: label, per_page: 1,
+            });
+            const issue = open.data[0];
+
+            // 直前に記録した「落ちている集合」を issue 本文か最新コメントから読む。
+            const lastDown = async () => {
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: issue.number, per_page: 100,
+              });
+              const texts = [issue.body ?? '', ...comments.map((c) => c.body ?? '')];
+              for (const text of texts.reverse()) {
+                const m = text.match(/<!-- uptime-down:([^ ]*) -->/);
+                if (m) return m[1];
+              }
+              return '';
+            };
+
+            let changed = false;
+            if (down.length > 0 && !issue) {
+              const created = await github.rest.issues.create({
+                owner, repo, labels: [label],
+                title: `Outage: ${down.join(', ')}`,
+                body: body(`:x: Down: **${down.join(', ')}** (cc @${owner})`),
+              });
+              core.notice(`Opened ${created.data.html_url}`);
+              changed = true;
+            } else if (down.length > 0 && issue) {
+              if ((await lastDown()) !== down.join(',')) {
+                await github.rest.issues.createComment({
+                  owner, repo, issue_number: issue.number,
+                  body: body(`:warning: Still down: **${down.join(', ')}**`),
+                });
+                changed = true;
+              }
+              core.warning(`Ongoing outage tracked in ${issue.html_url}`);
+            } else if (down.length === 0 && issue) {
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: issue.number,
+                body: body(':white_check_mark: All endpoints are back up.'),
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number: issue.number,
+                state: 'closed', state_reason: 'completed',
+              });
+              core.notice(`Recovered; closed ${issue.html_url}`);
+            }
+            core.setOutput('changed', changed ? 'true' : 'false');
+
+      - name: Fail on new or changed outage
+        if: steps.issue.outputs.changed == 'true'
+        env:
+          DOWN: ${{ steps.probe.outputs.down }}
+        run: |
+          echo "::error::Down: ${DOWN}"
+          exit 1
