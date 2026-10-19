@@ -42,10 +42,32 @@ yuniruyuni.net のインフラストラクチャを管理するリポジトリ�
 | `apply-terraform` | main push (`*.tf`) | `terraform apply` (apply environment) |
 | `validate-nixos` | PR / main push (`nixos/**`) | `nix flake check` + NixOS構成ビルド |
 | `apply-nixos` | main push (`nixos/**`) | NixOS構成をVPSにデプロイ (apply environment) |
+| `uptime` | schedule (10分毎) / 手動 | VPS の外から公開ホスト名を死活監視し、落ちたら `outage` issue を開く ([外形監視](#外形監視-uptime)) |
 
 GCP の CI SA は Workload Identity の `sub` (immutable subject claim) で environment ごとに束縛している: apply SA は `environment: apply` の job だけ、plan SA は `environment: plan` の job だけが借りられる (`ci.tf`)。workflow の `environment:` を変えるときは `ci.tf` も同時に直すこと。
 
 `main` は GitHub ruleset で保護し、PR 経由と 1 approval を要求する。単独管理リポジトリのため owner は PR ruleset を bypass できる。`apply` environment は `main` ブランチからのデプロイのみ許可し、merge 後の追加 reviewer 承認は要求しない。
+
+## 外形監視 (uptime)
+
+Grafana → n8n のアラートは VPS 上で動くため、VPS ごと落ちると通知も届かない。
+`.github/workflows/uptime.yml` が GitHub Actions 上 (VPS の外) から 10 分おきに
+`scripts/uptime-probe.sh` の各ターゲットを叩いて補う。
+
+- **判定**: 期待ステータスと本文の文字列の両方を見る (SPA の fallback や Cloudflare のエラーページを健康と取り違えないため)。
+  各アプリは `/health` (`{"status":"ok"}`)、`/health` を持たない lom はトップページ、
+  n8n は Access を bypass している `/webhook/*` に未登録の webhook を投げて n8n 自身の 404 を確認する。
+  失敗は 20 秒おきに 3 回まで再試行してから落ちたとみなす
+- **通知**: 落ちると `outage` ラベルの issue が開き (owner を mention)、全部戻ると自動で close される。
+  状態が変わった run (新規に落ちた / 落ちている集合が変わった) だけ job が失敗するので、
+  scheduled workflow の失敗メールも届く。落ち続けている間は 10 分ごとには鳴らない
+- **落ちたら**: issue の表で落ちたホスト名を確認。全滅なら VPS / cloudflared (`530`)、
+  一部ならそのアプリ (`502` は HAProxy の裏が全滅) を疑う。復旧すれば次の run で issue が閉じる
+- **ターゲットの追加**: tunnel の ingress (`cloudflare.tf`) にホスト名を足したら `scripts/uptime-probe.sh` の `TARGETS` にも足す
+- **注意**: Actions の schedule は混雑時に数分〜十数分遅れることがある。また public リポジトリでは
+  60 日間リポジトリに活動が無いと scheduled workflow が自動で無効化される (事前にメールが来る)。
+  Renovate の PR が定期的に入るので通常は該当しないが、無効化されたら Actions タブから再度有効化する
+- Cloudflare の Health Checks は Pro 以上のゾーン向けで、このゾーン (Free) では使えない
 
 ## 新規環境セットアップ / DR
 
