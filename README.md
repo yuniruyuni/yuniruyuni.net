@@ -87,3 +87,4 @@ terraform plan
 - [Cloud Run App 追加手順](docs/add-app.md)
 - [DB Password Rotation 手順](docs/db-password-rotation.md)
 - [Agenix Secrets Rekey 手順](docs/agenix-rekey.md)
+- [Runbook: 再起動後にアプリが 503 を返す](docs/runbooks/app-503-after-reboot.md)
