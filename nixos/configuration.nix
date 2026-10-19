@@ -9,6 +9,7 @@
 {
   imports = [
     ./hardware-configuration.nix
+    ./services/boot-selfcheck.nix
     ./services/cloudflared.nix
     ./services/n8n.nix
     ./services/incus.nix
