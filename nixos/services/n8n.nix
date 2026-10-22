@@ -72,7 +72,11 @@
     backend = "podman";
     containers = {
       n8n = {
-        image = "n8nio/n8n:2.44.4";
+        # Temporary, locally staged security rebuild; see docker/n8n-security and
+        # docs/runbooks/n8n-runtime-security-2026-10.md. The application remains
+        # 2.44.4; Node and its native modules are rebuilt against 26.12.1.
+        image = "localhost/n8n-security:2.44.4-node26.12.1-security1";
+        pull = "never";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
         volumes = [
@@ -135,6 +139,15 @@
   # 動作中に外から SIGTERM で落とされた場合も成功扱いになり Restart=on-failure
   # が効かなくなるが、そのような停止経路はここには無い。
   systemd.services.podman-n8n.serviceConfig.SuccessExitStatus = [ 0 143 ];
+
+  # Refuse a missing or different local image before touching the old container.
+  # Staging instructions and the rollback archive are in the security runbook.
+  systemd.services.podman-n8n.preStart = lib.mkBefore ''
+    actual=$(${pkgs.podman}/bin/podman image inspect \
+      localhost/n8n-security:2.44.4-node26.12.1-security1 --format '{{.Id}}')
+    actual="''${actual#sha256:}"
+    test "$actual" = "a95917fd88c35157a94ea6bda030f6dce185c83694b0effa60ca8e13f77d3af4"
+  '';
 
   systemd.services.podman-n8n.serviceConfig.ExecStartPost = [
     ("-" + pkgs.writeShellScript "n8n-prune-old-images" ''
