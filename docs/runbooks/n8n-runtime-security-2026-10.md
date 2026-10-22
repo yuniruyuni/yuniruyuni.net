@@ -6,21 +6,48 @@ This temporary rebuild retains n8n 2.44.4 and uses the official Node
 26.12.1-alpine3.24 image pinned by digest. It rebuilds isolated-vm, sqlite3 and
 Kafka against the new Node headers and musl. It is not an upstream n8n image.
 
+The OS-level decoder needs a separate correction: Alpine 3.24's installed
+`brotli-libs` 1.2.0-r1 does not contain the fix. The image builds stable Brotli
+1.2.1 from upstream commit `db24a98aed38a16de78cc05ca15cdd8dc2a0d92d` with a
+pinned source SHA-256, runs its upstream tests, and installs its shared libraries.
+That release cherry-picks the security fix as `b418fa81c48262a86a95332b0bc6d62c30aa78b6`.
+The old 1.2.0 shared objects are removed. Node's embedded decoder and the system
+decoder are verified independently.
+The distribution's APKBUILD and both patches (`optimize-mips.patch` and
+`fix-lp64.patch`) were inspected: neither patches the decoder's block-switch
+handling. `ldd /usr/lib/libcurl.so.4` confirms a consumer of the shared decoder;
+Node reports `node_shared_brotli=false`. This is not a claim that an existing
+workflow exploits that native path.
+
+Alpine's package database still names brotli-libs 1.2.0-r1: these shared objects
+are deliberately managed by this Dockerfile. The binary version, symlink target,
+source hash and `/usr/local/share/runtime-security/brotli.txt` record the actual
+1.2.1 contents. A package-version-only scan can therefore report the old version.
+Do not run apk upgrades in the finished image; a future build must preserve the
+patched-library installation after every apk operation until Alpine ships a fix.
+
+The image also retains the vendor's Corepack 0.36.0 and Yarn 1.22.22 JavaScript
+tools and installs Git 2.54.0 from stable Alpine 3.24 (the vendor had Git 2.55.0).
+Their command availability is checked by the smoke test. The initial security1
+candidate was deployed through PR #252 while security2 was being prepared.
+The follow-up corrects the missing helpers and separate shared decoder.
+
 ## Build and verification
 
 ```sh
-docker build -t localhost/n8n-security:2.44.4-node26.12.1-security1 docker/n8n-security
+docker build -t localhost/n8n-security:2.44.4-node26.12.1-security2 docker/n8n-security
 docker run --rm --network none --entrypoint node \
   -v "$PWD/docker/n8n-security:/tests:ro" \
-  localhost/n8n-security:2.44.4-node26.12.1-security1 /tests/native-smoke.cjs
+  localhost/n8n-security:2.44.4-node26.12.1-security2 /tests/native-smoke.cjs
 docker run --rm --network none --entrypoint sh \
   -v "$PWD/docker/n8n-security:/tests:ro" \
-  localhost/n8n-security:2.44.4-node26.12.1-security1 /tests/workflow-smoke.sh
+  localhost/n8n-security:2.44.4-node26.12.1-security2 /tests/workflow-smoke.sh
 ```
 
 Tests cover Node 26.12.1, SQLite queries, isolated-vm execution, Kafka/Sentry/
 Snowflake musl binding loading, Brotli roundtrip, workflow import and execution,
 HTTP Request, SQLite migrations, workflow publication and active webhook HTTP 200.
+They also check the patched shared Brotli CLI roundtrip and Git/Corepack/Yarn.
 The application version remains 2.44.4 to avoid a database upgrade during the
 runtime change. Real external workflows must not be executed just for testing.
 
@@ -75,3 +102,4 @@ Dockerfile and local-image guard in the same reviewed change.
 
 Sources: https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
 and https://github.com/n8n-io/n8n/blob/n8n%402.44.4/docker/images/n8n/Dockerfile
+and https://github.com/google/brotli/releases/tag/v1.2.1

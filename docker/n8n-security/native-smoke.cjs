@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const { execFileSync } = require('node:child_process');
 const { createRequire } = require('node:module');
 const root = '/usr/local/lib/node_modules/n8n';
 const requireN8n = createRequire(`${root}/package.json`);
@@ -36,3 +37,13 @@ for (const [prefix, relative] of [
 const zlib = require('node:zlib');
 assert.equal(zlib.brotliDecompressSync(zlib.brotliCompressSync('roundtrip')).toString(), 'roundtrip');
 console.log('patched Node Brotli roundtrip passed');
+assert.match(execFileSync('brotli', ['--version'], { encoding: 'utf8' }), /1\.2\.1/);
+const encoded = execFileSync('brotli', ['-c'], { input: 'shared-library roundtrip' });
+assert.equal(execFileSync('brotli', ['-d', '-c'], { input: encoded }).toString(), 'shared-library roundtrip');
+assert.equal(fs.realpathSync('/usr/lib/libbrotlidec.so.1'), '/usr/lib/libbrotlidec.so.1.2.1');
+assert.equal(fs.existsSync('/usr/lib/libbrotlidec.so.1.2.0'), false);
+assert.match(fs.readFileSync('/usr/local/share/runtime-security/brotli.txt', 'utf8'), /db24a98/);
+for (const [command, version] of [['git', /2\.54\.0/], ['corepack', /0\.36\.0/], ['yarn', /1\.22\.22/]]) {
+  assert.match(execFileSync(command, ['--version'], { encoding: 'utf8' }), version);
+}
+console.log('patched shared Brotli and vendor helper commands passed');
