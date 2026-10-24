@@ -1,6 +1,6 @@
 # Temporary security rebuild of the deployed n8n application, without an n8n
 # application/schema upgrade. Both inputs are immutable upstream images.
-FROM n8nio/n8n:2.44.4@sha256:c72fa9f1bd9b59626deeb284824c0495625c3f6d894d395d27e241bf192d9900 AS application
+FROM n8nio/n8n:2.45.0@sha256:2797383b01f762e0659278309c317d9f80301b6941a749faebfc52939d8b6c3d AS application
 FROM node:26.12.1-alpine3.24@sha256:ae8e1c19d56886270987e99b3cfcef13a919f0655b376ae322bc64ada76f88cd AS native-builder
 RUN apk add --no-cache python3 make g++ librdkafka-dev
 COPY --from=application /usr/local/lib/node_modules/n8n /usr/local/lib/node_modules/n8n
