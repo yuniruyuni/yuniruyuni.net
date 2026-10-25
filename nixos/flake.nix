@@ -28,6 +28,8 @@
         # Main configuration
         ./configuration.nix
 
+        { nixpkgs.overlays = [ (import ./pkgs/go-security.nix) ]; }
+
         # Agenix module for secrets
         agenix.nixosModules.default
 
