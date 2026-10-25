@@ -1,105 +1,152 @@
-# n8n October 2026 runtime security rebuild
+# n8n October 2026 runtime security overlay
 
-The deployed vendor n8n 2.44.4 runs Node 26.10.0. The vendor's stable 2.44.5 also
-pins that runtime, and n8nio/base:26.12.1 was unavailable on 2026-10-22.
-This temporary rebuild retains n8n 2.44.4 and uses the official Node
-26.12.1-alpine3.24 image pinned by digest. It rebuilds isolated-vm, sqlite3 and
-Kafka against the new Node headers and musl. It is not an upstream n8n image.
+As verified on 2026-10-25, n8n **2.44.6** is the latest official stable release;
+2.45.3 is beta/next. The image now derives directly from official 2.44.6 and
+changes only the separately vulnerable shared OS Brotli package. The official
+Node 26.12.1, n8n, native modules, Git 2.55.0, Corepack 0.36.0, Yarn 1.22.22,
+npm 11.21.1, user, entrypoint and runtime settings are preserved.
 
-The OS-level decoder needs a separate correction: Alpine 3.24's installed
-`brotli-libs` 1.2.0-r1 does not contain the fix. The image builds stable Brotli
-1.2.1 from upstream commit `db24a98aed38a16de78cc05ca15cdd8dc2a0d92d` with a
-pinned source SHA-256, runs its upstream tests, and installs its shared libraries.
-That release cherry-picks the security fix as `b418fa81c48262a86a95332b0bc6d62c30aa78b6`.
-The old 1.2.0 shared objects are removed. Node's embedded decoder and the system
-decoder are verified independently.
-The distribution's APKBUILD and both patches (`optimize-mips.patch` and
-`fix-lp64.patch`) were inspected: neither patches the decoder's block-switch
-handling. `ldd /usr/lib/libcurl.so.4` confirms a consumer of the shared decoder;
-Node reports `node_shared_brotli=false`. This is not a claim that an existing
-workflow exploits that native path.
+This supersedes the 2.44.4 security2 rebuild deployed through PR #253. That
+rebuild remains a patched rollback candidate; the earlier security1 in PR #252
+and unmodified 2.44.4 are not equivalent rollback targets.
 
-Alpine's package database still names brotli-libs 1.2.0-r1: these shared objects
-are deliberately managed by this Dockerfile. The binary version, symlink target,
-source hash and `/usr/local/share/runtime-security/brotli.txt` record the actual
-1.2.1 contents. A package-version-only scan can therefore report the old version.
-Do not run apk upgrades in the finished image; a future build must preserve the
-patched-library installation after every apk operation until Alpine ships a fix.
+## Provenance and trust
 
-The image also retains the vendor's Corepack 0.36.0 and Yarn 1.22.22 JavaScript
-tools and installs Git 2.54.0 from stable Alpine 3.24 (the vendor had Git 2.55.0).
-Their command availability is checked by the smoke test. The initial security1
-candidate was deployed through PR #252 while security2 was being prepared.
-The follow-up corrects the missing helpers and separate shared decoder.
+The Dockerfile pins official n8n 2.44.6 to index digest
+`sha256:d02752c6ab446ae9db8deec2f9cc887c378f77cdcad31650814df936b7386dfb`.
+The tested linux/amd64 manifest is
+`sha256:845ac21710739d7206086974295f7f93932e0fa8dd87af6d9fb0b7aa0338ad15`.
+Only linux/amd64 has been validated for this overlay.
+
+Official Node 26.12.1 includes the decoder security backport. Its embedded
+Brotli version string remains 1.2.0; that string alone is not a vulnerability
+verdict. Node reports `node_shared_brotli=false`. The separate OS package in
+the official image is brotli-libs 1.2.0-r1, whose decoder binary is identical
+to the unpatched official 2.44.4 library. The actual shared consumer chain is
+Git's git-remote-http -> libcurl -> libbrotlidec.
+
+The sole replacement is the **official Alpine 3.24 signed binary package**
+[brotli-libs 1.2.1-r0](https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/brotli-libs-1.2.1-r0.apk),
+SHA-256 `62a7e37e43bbfc1f8525a00ad2125fd5897135dc93b849733884cb78ffd8e26c`.
+Its [official APKBUILD](https://github.com/alpinelinux/aports/blob/8313352127992a9d82e2c2024494f6c38a4dffb4/main/brotli/APKBUILD)
+uses stable Brotli 1.2.1, upstream commit
+`db24a98aed38a16de78cc05ca15cdd8dc2a0d92d`. That release includes backport
+`b418fa81c48262a86a95332b0bc6d62c30aa78b6` of decoder fix
+`0ed4268a4401abcb4472096340477cf4af7d1a2b`.
+
+This is not a locally built or locally signed package. The signature is
+`alpine-devel@lists.alpinelinux.org-6165ee59.rsa.pub`, already trusted by the
+unmodified official n8n base. The existing key's SHA-256 is
+`207e4696d3c05f7cb05966aee557307151f1f00217af4143c1bcaf33b8df733f`.
+No signing credentials, keys, repositories or persistent trust are added.
+Both the checksum and package signature are verified. Installation uses only
+the base's existing trust store, with network disabled and repositories disabled.
+
+A pinned Alpine stage supplies temporary installer/test tools through BuildKit
+mounts. They, the APK archive and its build tools do not remain in the runtime.
+The one new filesystem layer contains the shared libraries, accurate package
+records/log and `/usr/local/share/runtime-security/brotli.txt`. Old 1.2.0 shared
+objects are removed. Unlike security2, the installed APK database correctly
+records **1.2.1-r0**. This one package comes from Alpine, rather than the base's
+DHI build. Upstream image attestations describe the base, not this derived
+artifact; scanners should inspect its actual package database and filesystem.
+Do not claim this overlay has a vendor-issued whole-image attestation.
 
 ## Build and verification
 
 ```sh
-docker build -t localhost/n8n-security:2.44.4-node26.12.1-security2 docker/n8n-security
-docker run --rm --network none --entrypoint node \
-  -v "$PWD/docker/n8n-security:/tests:ro" \
-  localhost/n8n-security:2.44.4-node26.12.1-security2 /tests/native-smoke.cjs
+docker build --platform linux/amd64 \
+  -t localhost/n8n-security:2.44.6-brotli1.2.1-overlay1 docker/n8n-security
+
+docker run --rm --network none --read-only --tmpfs /tmp:rw,nosuid,nodev,size=32m \
+  --entrypoint node -v "$PWD/docker/n8n-security:/tests:ro" \
+  localhost/n8n-security:2.44.6-brotli1.2.1-overlay1 /tests/native-smoke.cjs
+
 docker run --rm --network none --entrypoint sh \
   -v "$PWD/docker/n8n-security:/tests:ro" \
-  localhost/n8n-security:2.44.4-node26.12.1-security2 /tests/workflow-smoke.sh
+  localhost/n8n-security:2.44.6-brotli1.2.1-overlay1 /tests/workflow-smoke.sh
 ```
 
-Tests cover Node 26.12.1, SQLite queries, isolated-vm execution, Kafka/Sentry/
-Snowflake musl binding loading, Brotli roundtrip, workflow import and execution,
-HTTP Request, SQLite migrations, workflow publication and active webhook HTTP 200.
-They also check the patched shared Brotli CLI roundtrip and Git/Corepack/Yarn.
-The application version remains 2.44.4 to avoid a database upgrade during the
-runtime change. Real external workflows must not be executed just for testing.
+The n8n Image CI workflow also compares official and candidate snapshots:
+all official layers and runtime configuration remain; only brotli-libs changes
+in the package inventory. Critical helpers, package trust, native modules and
+migration files must have identical hashes. Local checks preserved 87 native
+module files, eight critical files and seven trust/repository files. All 404
+migration files also match security2's n8n 2.44.4.
 
-## Staging and activation
+Smoke tests exercise SQLite, isolated-vm, Kafka, Sentry and Snowflake musl
+bindings; Node and shared-library Brotli roundtrips; shared decoder provenance
+and Git/libcurl linkage; helper versions; fresh migrations; synthetic credential
+encryption/decryption; local HTTP Request and Code nodes; and a published
+webhook. They use disposable data and no external network. The webhook check
+has a bounded registration wait, since readiness can precede webhook registration.
 
-Use the existing administrator SSH path. No new registry credentials or access
-policies are needed. Save the running vendor image before its post-start prune:
+A separate disposable upgrade fixture verified that security2-created data and
+credentials work in 2.44.6 and remain readable by security2 afterward. This is
+bounded compatibility evidence, not permission to overwrite live data. Real
+external OAuth flows and business workflows are not invoked by these tests.
+Existing community modules should also be loaded against the candidate using
+only a read-only mount of their installed code and no network or production
+credential/database mount. Report pre-existing missing packages separately.
 
-```sh
-sudo -u n8n podman save --format oci-archive \
-  --output /var/lib/n8n/security-rollback-20261022/n8n-2.44.4.oci.tar \
-  docker.io/n8nio/n8n:2.44.4
-```
+## Artifact staging and activation
 
-The parent directory must already exist with mode 0700 and owner n8n. Transfer
-the built image with `docker save` over SSH into `sudo -u n8n podman load`.
-Verify the loaded image ID against the preStart assertion in n8n.nix and verify
-`node --version` in an isolated container before merging the configuration PR.
-The service uses `pull = "never"`: a missing local image must fail closed.
-There is deliberately no persistent registry login. A replacement host needs
-the image staged before this NixOS configuration can start n8n.
+The tested artifact uses tag
+`localhost/n8n-security:2.44.6-brotli1.2.1-overlay1` and config ID
+`60a5003bde5ec528b13daad0d017549869316fff0a66250e6557d3c60ef68a8b`.
+Its local amd64 manifest is
+`sha256:530c202843305c97c6297e4a1ce82715f0740382edf6885646ba5540bbda7ffb`;
+the exported Docker archive SHA-256 is
+`4ca96a0529f1a06ff80a811000c04e209c9778289bd9ffc7f413ad0d58ae9830`.
+The NixOS preStart guard checks the config ID. Rebuilding may change the image
+ID because of build timestamps and package logs: CI validates the recipe, while
+activation deliberately selects the exact locally tested, staged artifact.
 
-Before activation, stop n8n briefly and make a consistent, encrypted data archive
-under `/var/lib/backups/security-20261022-n8n` (mode 0700), addressed to the existing
-host and infrastructure-admin recipients. Preserve the encrypted n8n key and
-current NixOS configuration beside it. Verify the encrypted key decrypts with
-the existing host identity to exactly the current runtime key without printing
-either value. Verify the archive can be decrypted and read; restart n8n on every
-failure path. Do not invoke the general backup helper here: it also permanently
-deletes old remote backups, which is outside this remediation.
+Use existing administrator SSH access. Preserve the running security2 image
+as a checked OCI archive in an n8n-owned mode-0700 directory before staging;
+for this rollout the directory is `/var/lib/n8n/security-rollback-20261025-overlay`.
+Security2's config ID is
+`ca32ea47071c890793ef14a4f3baf9f6537a7df16dad01432e06afc9c35306ce`.
+Transfer the candidate with `docker save` into rootless `podman load`, then
+verify its ID, runtime and shared decoder without activating it. No persistent
+registry login is needed. The service retains `pull = "never"`; replacement
+hosts must have this exact artifact staged before starting the configuration.
 
-After the normal NixOS deployment, inspect the actual running image ID and
-`process.versions`, check `/healthz/readiness` at the origin, compare workflow/
-credential counts, and check all configured active workflows activated. Verify
-the other application HAProxy backends remain up. Cached Cloudflare HTTP 200
-alone is insufficient. Credential bodies, tokens, workflow content and key
-values must not appear in logs or reports.
+Merge only through the normal PR process after required checks and review.
+The main branch requires one approving review; do not use owner override.
+Recheck remote main, running image and service configuration before activation
+to detect concurrent changes. Staging alone must leave active production intact.
 
-## Rollback and retirement
+Immediately before activation, briefly stop n8n and make a consistent encrypted
+data archive in a new mode-0700 directory under `/var/lib/backups`, addressed
+to existing host and infrastructure-admin recipients. Preserve the encrypted
+n8n key and current NixOS configuration. Verify key recovery byte-for-byte
+without printing secrets, and verify the archive decrypts and is readable.
+Restart on every failure path. Do not use the general backup helper, which
+also deletes old remote backups. Do not stop production merely to wait for review.
 
-The saved vendor image can be loaded locally. Revert the n8n.nix image, pull
-policy and preStart assertion, then use the normal NixOS deployment. Preserve
-the encrypted data snapshot; restoring it overwrites subsequent application data
-and needs a separate decision. A runtime-only rollback normally reuses current
-data because n8n stayed at 2.44.4. The old image restores the known vulnerabilities.
+After normal NixOS deployment, verify the actual active image ID, n8n/Node,
+shared decoder, helper commands, origin `/healthz/readiness`, workflow and
+credential counts, and active workflow registration. Check all other application
+HAProxy backends. Cloudflare HTTP 200 alone is insufficient. Never log credential
+bodies, workflow content, keys or tokens.
 
-The local image guard intentionally pins the exact tested image ID. Rebuilding
-with different Alpine package revisions can change this ID: validate again and
-update the assertion only with the new tested artifact. Prefer a vendor image
-once its actual Node runtime is verified patched, then remove this temporary
-Dockerfile and local-image guard in the same reviewed change.
+## Rollback and overlay retirement
 
-Sources: https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
-and https://github.com/n8n-io/n8n/blob/n8n%402.44.4/docker/images/n8n/Dockerfile
-and https://github.com/google/brotli/releases/tag/v1.2.1
+For image rollback, load the saved **security2** archive and revert the n8n image
+and preStart ID through the normal configuration deployment. Preserve the current
+data and encrypted snapshot. The disposable downgrade-read test passed, but a
+production data restore overwrites newer data and requires a separate decision.
+Do not fall back to unpatched vendor 2.44.4 or security1.
+
+Remove this overlay when an official stable n8n image is verified to contain
+both a patched Node runtime and a patched shared OS decoder, using actual
+package provenance/library contents and the Git/libcurl linkage. Version labels
+alone are insufficient when a vendor backports fixes. Repeat preservation,
+native/community module and isolated workflow tests, pin the vendor digest,
+then remove the Dockerfile and local artifact guard in the same reviewed change.
+
+References: [Node advisory](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases),
+[official n8n 2.44.6 Dockerfile](https://github.com/n8n-io/n8n/blob/n8n%402.44.6/docker/images/n8n/Dockerfile),
+[official Node backport](https://github.com/nodejs/node/blob/v26.12.1/deps/brotli/c/dec/decode.c),
+[Brotli 1.2.1 release](https://github.com/google/brotli/releases/tag/v1.2.1).

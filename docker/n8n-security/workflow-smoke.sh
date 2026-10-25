@@ -20,5 +20,18 @@ for attempt in $(seq 1 60); do
   if node -e 'fetch("http://127.0.0.1:5678/healthz/readiness").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'; then break; fi
   sleep 1
 done
-node -e 'fetch("http://127.0.0.1:5678/webhook/security-runtime-smoke").then(async r=>{if(!r.ok)throw Error("webhook status "+r.status);console.log("active webhook HTTP "+r.status)}).catch(e=>{console.error(e.message);process.exit(1)})'
+# Readiness can precede registration of published workflows. Retry only a 404
+# during this bounded startup window; other errors still fail immediately.
+node <<'JS'
+(async () => {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const response = await fetch('http://127.0.0.1:5678/webhook/security-runtime-smoke', { signal: AbortSignal.timeout(2000) });
+    await response.arrayBuffer();
+    if (response.ok) { console.log('active webhook HTTP ' + response.status); return; }
+    if (response.status !== 404) throw new Error('webhook status ' + response.status);
+    await new Promise(resolve => setTimeout(resolve, 500));
+  }
+  throw new Error('published webhook did not register within 20 seconds');
+})().catch(error => { console.error(error.message); process.exit(1); });
+JS
 echo 'isolated n8n start, SQLite migrations, workflow activation and webhook passed'
