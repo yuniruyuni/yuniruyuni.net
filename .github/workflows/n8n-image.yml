@@ -1,0 +1,36 @@
+name: n8n Image
+
+on:
+  pull_request:
+    paths: ['docker/n8n-security/**', '.github/workflows/n8n-image.yml']
+  push:
+    branches: [main]
+    paths: ['docker/n8n-security/**', '.github/workflows/n8n-image.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Build pinned official image with signed Brotli correction
+        run: docker build --platform linux/amd64 -t n8n-overlay docker/n8n-security
+      - name: Verify preservation of official runtime and package trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=$(awk '$1 == "FROM" && $2 ~ /^n8nio\/n8n:/ { print $2 }' docker/n8n-security/Dockerfile)
+          docker pull --platform linux/amd64 "$base"
+          mkdir snapshots
+          docker image inspect "$base" > snapshots/base-inspect.json
+          docker image inspect n8n-overlay > snapshots/candidate-inspect.json
+          docker run --rm --network none --read-only -v "$PWD/docker/n8n-security:/tests:ro" --entrypoint node "$base" /tests/preservation-snapshot.cjs > snapshots/base.json
+          docker run --rm --network none --read-only -v "$PWD/docker/n8n-security:/tests:ro" --entrypoint node n8n-overlay /tests/preservation-snapshot.cjs > snapshots/candidate.json
+          docker run --rm --network none --read-only -v "$PWD/docker/n8n-security:/tests:ro" -v "$PWD/snapshots:/snapshots:ro" --entrypoint node n8n-overlay /tests/preservation-check.cjs /snapshots
+      - name: Verify native modules, shared library consumers and helpers
+        run: timeout 90s docker run --rm --network none --read-only --tmpfs /tmp:rw,nosuid,nodev,size=32m -v "$PWD/docker/n8n-security:/tests:ro" --entrypoint node n8n-overlay /tests/native-smoke.cjs
+      - name: Verify disposable credentials, workflows and webhooks
+        run: timeout 240s docker run --rm --network none -v "$PWD/docker/n8n-security:/tests:ro" --entrypoint sh n8n-overlay /tests/workflow-smoke.sh

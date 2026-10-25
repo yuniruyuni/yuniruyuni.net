@@ -72,10 +72,10 @@
     backend = "podman";
     containers = {
       n8n = {
-        # Temporary, locally staged security rebuild; see docker/n8n-security and
-        # docs/runbooks/n8n-runtime-security-2026-10.md. The application remains
-        # 2.44.4; Node and its native modules are rebuilt against 26.12.1.
-        image = "localhost/n8n-security:2.44.4-node26.12.1-security2";
+        # Official stable n8n with only the signed OS Brotli package corrected.
+        # Node, native modules and helpers are inherited unchanged; see
+        # docs/runbooks/n8n-runtime-security-2026-10.md.
+        image = "localhost/n8n-security:2.44.6-brotli1.2.1-overlay1";
         pull = "never";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
@@ -144,9 +144,9 @@
   # Staging instructions and the rollback archive are in the security runbook.
   systemd.services.podman-n8n.preStart = lib.mkBefore ''
     actual=$(${pkgs.podman}/bin/podman image inspect \
-      localhost/n8n-security:2.44.4-node26.12.1-security2 --format '{{.Id}}')
+      localhost/n8n-security:2.44.6-brotli1.2.1-overlay1 --format '{{.Id}}')
     actual="''${actual#sha256:}"
-    test "$actual" = "ca32ea47071c890793ef14a4f3baf9f6537a7df16dad01432e06afc9c35306ce"
+    test "$actual" = "60a5003bde5ec528b13daad0d017549869316fff0a66250e6557d3c60ef68a8b"
   '';
 
   systemd.services.podman-n8n.serviceConfig.ExecStartPost = [
