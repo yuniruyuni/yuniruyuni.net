@@ -111,7 +111,6 @@
         ]
       },
       "locked": {
-        "__final": true,
         "lastModified": 1792927515,
         "narHash": "sha256-jHMwebQAAAtcu3EfVFRq7bP30GO6Sk4QY7akE9pxDLU=",
         "owner": "yuniruyuni",
