@@ -1,0 +1,27 @@
+diff --git a/tests/test_console.py b/tests/test_console.py
+index 499043b..107e4e4 100644
+--- a/tests/test_console.py
++++ b/tests/test_console.py
+@@ -1003 +1003 @@ def test_brokenpipeerror() -> None:
+-    which_py, which_head = (["which", cmd] for cmd in ("python", "head"))
++    which_py = ["which", "python"]
+@@ -1005 +1005 @@ def test_brokenpipeerror() -> None:
+-    for cmd in [which_py, which_head, rich_cmd]:
++    for cmd in [which_py, rich_cmd]:
+@@ -1009,9 +1009,7 @@ def test_brokenpipeerror() -> None:
+-    head_cmd = "head -1".split()
+-    proc1 = subprocess.Popen(rich_cmd, stdout=subprocess.PIPE)
+-    proc2 = subprocess.Popen(head_cmd, stdin=proc1.stdout, stdout=subprocess.PIPE)
+-    proc1.stdout.close()
+-    output, _ = proc2.communicate()
+-    proc1.wait()
+-    proc2.wait()
+-    assert proc1.returncode == 1
+-    assert proc2.returncode == 0
++    # Close the reader before starting Rich. A concurrent head process can
++    # otherwise run after all output fits in the pipe, yielding a valid exit 0.
++    reader, writer = os.pipe()
++    os.close(reader)
++    with os.fdopen(writer, "wb") as destination:
++        proc = subprocess.run(rich_cmd, stdout=destination)
++    assert proc.returncode == 1
