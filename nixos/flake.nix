@@ -31,6 +31,7 @@
         { nixpkgs.overlays = [
           (import ./pkgs/go-security.nix)
           (import ./pkgs/incus-completions.nix)
+          (import ./pkgs/rich-tests.nix)
         ]; }
 
         # Agenix module for secrets
