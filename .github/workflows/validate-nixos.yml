@@ -41,5 +41,9 @@ jobs:
         working-directory: nixos
         run: |
           echo "Building NixOS system..."
-          nix build .#nixosConfigurations.vps.config.system.build.toplevel
+          nix build .#nixosConfigurations.vps.config.system.build.toplevel --print-build-logs
           echo "Build successful!"
+
+      - name: Test Incus completion generation
+        working-directory: nixos
+        run: nix build .#checks.x86_64-linux.incus-completions --print-build-logs
