@@ -5,7 +5,7 @@ const { createRequire } = require('node:module');
 const root = '/usr/local/lib/node_modules/n8n';
 const requireN8n = createRequire(`${root}/package.json`);
 assert.equal(process.version, 'v26.12.1');
-assert.equal(requireN8n('./package.json').version, '2.45.3');
+assert.equal(requireN8n('./package.json').version, '2.44.6');
 console.log(JSON.stringify({ node: process.version, modules: process.versions.modules, openssl: process.versions.openssl }));
 const ivm = requireN8n('isolated-vm');
 const isolate = new ivm.Isolate({ memoryLimit: 16 });
