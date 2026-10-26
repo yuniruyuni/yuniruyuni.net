@@ -1,0 +1,85 @@
+{
+  "base": "docker.io/grafana/grafana@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f",
+  "source_commit": "af4a33e3786594ad72f72d97e6744010330c2977",
+  "version": "13.2.4",
+  "plugins": [
+    {
+      "plugin": "elasticsearch",
+      "installed": "12.9.2",
+      "candidate": "12.9.3",
+      "published": "2026-10-21T11:14:22.000Z",
+      "url": "https://grafana.com/api/plugins/elasticsearch/versions/12.9.3/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "24a2a04189517aec328dc13fa13aecab7bc52a373b8b36c552e2649502e8d1eb"
+    },
+    {
+      "plugin": "grafana-pyroscope-datasource",
+      "installed": "13.0.7",
+      "candidate": "13.0.8",
+      "published": "2026-10-21T11:32:39.000Z",
+      "url": "https://grafana.com/api/plugins/grafana-pyroscope-datasource/versions/13.0.8/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "76f23425dd0747e65479ee02020748d37eb7f11f7d0740a0c81eebcb29c1cbaa"
+    },
+    {
+      "plugin": "opentsdb",
+      "installed": "13.0.4",
+      "candidate": "13.0.6",
+      "published": "2026-10-21T11:47:25.000Z",
+      "url": "https://grafana.com/api/plugins/opentsdb/versions/13.0.6/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "e783acd5901e11d6d4f102d9bd5bdd75be61ae7c9c03c770a6a0c534e9033281"
+    },
+    {
+      "plugin": "prometheus",
+      "installed": "13.2.3",
+      "candidate": "13.2.4",
+      "published": "2026-10-22T09:24:11.000Z",
+      "url": "https://grafana.com/api/plugins/prometheus/versions/13.2.4/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "117edd789f96f4dc6f2e79bef6be3ea10e9ffec775e81e05c16954bcc10cc3a0"
+    },
+    {
+      "plugin": "stackdriver",
+      "installed": "12.6.2",
+      "candidate": "12.6.4",
+      "published": "2026-10-21T11:48:06.000Z",
+      "url": "https://grafana.com/api/plugins/stackdriver/versions/12.6.4/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "5bf571db8389b042064411943e7e2e898829d1b76c193cebf0017cc615452295"
+    },
+    {
+      "plugin": "tempo",
+      "installed": "13.2.4",
+      "candidate": "13.3.0",
+      "published": "2026-10-21T16:10:59.000Z",
+      "url": "https://grafana.com/api/plugins/tempo/versions/13.3.0/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "692135f83a7430e54dd2aeaf89da7c3f7b7561ea7826582294910d7c59842bd1"
+    },
+    {
+      "plugin": "zipkin",
+      "installed": "12.4.9",
+      "candidate": "12.4.11",
+      "published": "2026-10-21T15:28:06.000Z",
+      "url": "https://grafana.com/api/plugins/zipkin/versions/12.4.11/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "6d4cd5354301d80e2afa3d93b4f1a4ea30222df33387418e797c964b5bfcf252"
+    }
+  ],
+  "baseline_plugins": {
+    "elasticsearch": "12.9.2",
+    "grafana-postgresql-datasource": "13.0.4",
+    "grafana-pyroscope-datasource": "13.0.7",
+    "influxdb": "13.1.7",
+    "jaeger": "13.0.5",
+    "loki": "13.2.2",
+    "mssql": "13.0.7",
+    "mysql": "13.1.4",
+    "opentsdb": "13.0.4",
+    "prometheus": "13.2.3",
+    "stackdriver": "12.6.2",
+    "tempo": "13.2.4",
+    "zipkin": "12.4.9"
+  }
+}
