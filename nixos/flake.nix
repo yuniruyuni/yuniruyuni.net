@@ -32,6 +32,7 @@
           (import ./pkgs/go-security.nix)
           (import ./pkgs/incus-completions.nix)
           (import ./pkgs/rich-tests.nix)
+          (import ./pkgs/cloudflared-tests.nix)
         ]; }
 
         # Agenix module for secrets
