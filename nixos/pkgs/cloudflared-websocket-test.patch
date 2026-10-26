@@ -1,0 +1,32 @@
+diff --git a/management/events_test.go b/management/events_test.go
+index 1d40e29..1ce202d 100644
+--- a/management/events_test.go
++++ b/management/events_test.go
+@@ -168,0 +169 @@ func TestReadServerEvent_InvalidWebSocketMessageType(t *testing.T) {
++	t.Parallel()
+@@ -173,0 +175,3 @@ func TestReadServerEvent_InvalidWebSocketMessageType(t *testing.T) {
++	// The decoder rejects the message type without consuming its payload. Use
++	// an empty binary frame and join the writer before closing the connection.
++	written := make(chan error, 1)
+@@ -175,2 +179 @@ func TestReadServerEvent_InvalidWebSocketMessageType(t *testing.T) {
+-		err := server.Write(context.Background(), websocket.MessageBinary, []byte("test1234"))
+-		require.NoError(t, err)
++		written <- server.Write(context.Background(), websocket.MessageBinary, nil)
+@@ -179 +182,2 @@ func TestReadServerEvent_InvalidWebSocketMessageType(t *testing.T) {
+-	require.Error(t, err)
++	require.ErrorIs(t, err, errInvalidMessageType)
++	require.NoError(t, <-written)
+@@ -218,0 +223 @@ func TestReadClientEvent_InvalidWebSocketMessageType(t *testing.T) {
++	t.Parallel()
+@@ -223,0 +229,3 @@ func TestReadClientEvent_InvalidWebSocketMessageType(t *testing.T) {
++	// The decoder rejects the message type without consuming its payload. Use
++	// an empty binary frame and join the writer before closing the connection.
++	written := make(chan error, 1)
+@@ -225,2 +233 @@ func TestReadClientEvent_InvalidWebSocketMessageType(t *testing.T) {
+-		err := client.Write(context.Background(), websocket.MessageBinary, []byte("test1234"))
+-		require.NoError(t, err)
++		written <- client.Write(context.Background(), websocket.MessageBinary, nil)
+@@ -229 +236,2 @@ func TestReadClientEvent_InvalidWebSocketMessageType(t *testing.T) {
+-	require.Error(t, err)
++	require.ErrorIs(t, err, errInvalidMessageType)
++	require.NoError(t, <-written)

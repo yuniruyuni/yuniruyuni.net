@@ -33,13 +33,13 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install Nix
-        uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702 # v31
+        uses: cachix/install-nix-action@75c75c31ebece974e48ebc36b4ad125bd97bd97b # v31
         with:
           nix_path: nixpkgs=channel:nixos-26.05
 
       - name: Install cloudflared
         run: |
-          CLOUDFLARED_VERSION="2026.10.1"
+          CLOUDFLARED_VERSION="2026.10.3"
           curl -L "https://github.com/cloudflare/cloudflared/releases/download/${CLOUDFLARED_VERSION}/cloudflared-linux-amd64" -o /usr/local/bin/cloudflared
           chmod +x /usr/local/bin/cloudflared
           cloudflared --version
