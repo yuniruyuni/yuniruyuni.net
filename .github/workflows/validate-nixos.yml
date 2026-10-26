@@ -41,5 +41,5 @@ jobs:
         working-directory: nixos
         run: |
           echo "Building NixOS system..."
-          nix build .#nixosConfigurations.vps.config.system.build.toplevel
+          nix build .#nixosConfigurations.vps.config.system.build.toplevel --print-build-logs
           echo "Build successful!"
