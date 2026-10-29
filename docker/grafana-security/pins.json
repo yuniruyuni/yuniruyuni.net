@@ -22,6 +22,24 @@
       "catalog_sha256_verified": "76f23425dd0747e65479ee02020748d37eb7f11f7d0740a0c81eebcb29c1cbaa"
     },
     {
+      "plugin": "jaeger",
+      "installed": "13.0.5",
+      "candidate": "13.0.6",
+      "published": "2026-10-21T13:04:43.000Z",
+      "url": "https://grafana.com/api/plugins/jaeger/versions/13.0.6/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "f15634bfcccc9f22e4c873efe3e9cc8126bd514b5358d0d3df1ba89380cc513f"
+    },
+    {
+      "plugin": "loki",
+      "installed": "13.2.2",
+      "candidate": "13.2.3",
+      "published": "2026-10-21T13:08:29.000Z",
+      "url": "https://grafana.com/api/plugins/loki/versions/13.2.3/download?os=linux&arch=amd64",
+      "compiled_go": "go1.27.3",
+      "catalog_sha256_verified": "570eaf86dd650663c594832eb675bb236d1231350016710d50ee583f479eb7c1"
+    },
+    {
       "plugin": "opentsdb",
       "installed": "13.0.4",
       "candidate": "13.0.6",

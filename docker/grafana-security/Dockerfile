@@ -21,7 +21,7 @@ COPY --from=builder --chown=0:0 --chmod=755 /src/bin/linux/amd64/grafana /usr/sh
 FROM core AS candidate
 USER 0
 # Replace complete official signed archives; retaining old files would invalidate signatures.
-RUN rm -rf /usr/share/grafana/data/plugins-bundled/elasticsearch /usr/share/grafana/data/plugins-bundled/grafana-pyroscope-datasource /usr/share/grafana/data/plugins-bundled/opentsdb /usr/share/grafana/data/plugins-bundled/prometheus /usr/share/grafana/data/plugins-bundled/stackdriver /usr/share/grafana/data/plugins-bundled/tempo /usr/share/grafana/data/plugins-bundled/zipkin
+RUN rm -rf /usr/share/grafana/data/plugins-bundled/elasticsearch /usr/share/grafana/data/plugins-bundled/grafana-pyroscope-datasource /usr/share/grafana/data/plugins-bundled/jaeger /usr/share/grafana/data/plugins-bundled/loki /usr/share/grafana/data/plugins-bundled/opentsdb /usr/share/grafana/data/plugins-bundled/prometheus /usr/share/grafana/data/plugins-bundled/stackdriver /usr/share/grafana/data/plugins-bundled/tempo /usr/share/grafana/data/plugins-bundled/zipkin
 COPY --from=builder --chown=472:0 /plugins/ /usr/share/grafana/data/plugins-bundled/
 USER 472
 
