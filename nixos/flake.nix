@@ -33,6 +33,7 @@
           (import ./pkgs/incus-completions.nix)
           (import ./pkgs/rich-tests.nix)
           (import ./pkgs/cloudflared-tests.nix)
+          (import ./pkgs/libadwaita-tests.nix)
         ]; }
 
         # Agenix module for secrets
