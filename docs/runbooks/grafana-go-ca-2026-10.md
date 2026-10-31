@@ -63,6 +63,22 @@ the server and all 13 bundled backend binaries were inspected directly with
 The existing NixOS Validate workflow validates and builds the NixOS configuration.
 It does not execute Grafana or test a database migration.
 
+On 2026-10-31 the actual amd64 server and plugin binaries were executed under
+QEMU in an offline local Linux VM, using synthetic data only. Official 13.2.5
+and then the same server with the six read-only plugin mounts each passed 11
+checks (22 total): database/version, a retained dashboard, the exact 13 plugin
+versions and valid runtime signatures, Prometheus/Loki/Tempo health and proxy
+requests, trusted TLS acceptance and untrusted TLS rejection with a matching
+x509 runtime log. The six external plugins took precedence over the bundled
+versions, including the uncatalogued MySQL 13.1.5 archive. The selected server
+uses Go 1.26.10 and every selected backend plugin uses Go 1.27.3, so no older Go
+backend remains for this CA issue.
+
+This test executes extracted official binaries and reproduces the plugin mounts;
+it does not execute NixOS switch or Podman's generated production unit. It also
+does not test an upgrade from the existing production 13.2.4 database. Required
+public NixOS CI remains pending until the review branch can be published.
+
 Production merge, deployment, and the final combined health check are coordinated
 by the production task. Normal backups and NixOS rollback remain the existing
 recovery path; this change does not add a separate backup or restore procedure.
