@@ -11,6 +11,7 @@
     ./hardware-configuration.nix
     ./services/boot-selfcheck.nix
     ./services/cloudflared.nix
+    ./services/grafana-security.nix
     ./services/n8n.nix
     ./services/incus.nix
     ./services/incus-backup.nix
