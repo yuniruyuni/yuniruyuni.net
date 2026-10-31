@@ -68,6 +68,11 @@ let
     # Keep the checked versions; the updater cannot replace read-only mounts.
     Environment=GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false
   '';
+
+  expectedMounts = map (pin: {
+    source = toString (pluginPath pin);
+    destination = "/var/lib/grafana/plugins/${pin.id}";
+  }) pins;
 in
 {
   config = lib.mkIf (cfg.enable && cfg.observability.enable) {
@@ -79,11 +84,35 @@ in
     # Extend the existing yunirun-owned Quadlet without changing its generator.
     environment.etc."containers/systemd/yunirun-grafana.container.d/security.conf".source = quadletDropin;
 
-    # NixOS switches must also apply plugin-only updates. Keep the generated
-    # service intact, and restart only when this drop-in's content changes.
-    systemd.services.yunirun-grafana = {
-      overrideStrategy = "asDropin";
+    # Generated Quadlet services are outside NixOS's unit-change detection.
+    # Apply plugin-only updates after converge, and avoid a second restart when
+    # converge already recreated Grafana with these exact read-only mounts.
+    systemd.services.grafana-security-apply = {
+      description = "Apply pinned Grafana datasource plugins";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "yunirun-converge.service" ];
       restartTriggers = [ quadletDropin ];
+      path = [ pkgs.podman pkgs.jq pkgs.systemd ];
+      serviceConfig = {
+        Type = "oneshot";
+        RemainAfterExit = true;
+      };
+      script = ''
+        if podman inspect yunirun-grafana | jq -e \
+          --argjson expected ${lib.escapeShellArg (builtins.toJSON expectedMounts)} '
+            .[0] as $actual
+            | all($expected[]; . as $wanted
+                | any($actual.Mounts[];
+                    .Source == $wanted.source and
+                    .Destination == $wanted.destination and .RW == false))
+              and any($actual.Config.Env[];
+                . == "GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false")
+          ' >/dev/null; then
+          exit 0
+        fi
+        systemctl daemon-reload
+        systemctl restart yunirun-grafana.service
+      '';
     };
   };
 }

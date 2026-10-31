@@ -48,9 +48,12 @@ independent of the previously rejected custom-image workflow proposed for #267;
 that workflow remains unimplemented. The new candidate supersedes the old
 13.2.4 custom build recipe.
 
-The NixOS service drop-in adds a restart trigger for the Quadlet configuration,
-so a plugin-only change is applied during a normal NixOS switch without
-restarting Grafana on every unrelated yunirun converge.
+A NixOS oneshot runs after converge when the pinned configuration changes. It
+compares the actual six mount sources, destinations, read-only flags and update
+setting; it restarts Grafana only if these differ. This applies plugin-only
+updates without a second restart when converge already applied them, or a restart
+on every unrelated converge. Generated Quadlet services themselves are outside
+NixOS unit-change detection.
 
 ## Validation boundaries
 
