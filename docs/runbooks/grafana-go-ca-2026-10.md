@@ -34,7 +34,8 @@ is `F33B25B691074E84636570F37E4D0C6A708866E7`, obtained from
 ## Configuration and existing deployment
 
 Nix fetches each ZIP by its raw SHA-256 and preserves its entire signed contents
-and executable modes. A normal Podman Quadlet drop-in mounts the resulting Nix
+and executable modes. Group/other write bits are removed for valid Nix store
+permissions, without changing file contents. A normal Podman Quadlet drop-in mounts the resulting Nix
 store directories read-only under `/var/lib/grafana/plugins/<id>`. Grafana
 [searches that directory before its bundled plugin directory](https://github.com/grafana/grafana/blob/v13.2.5/pkg/setting/setting.go#L1588).
 The first occurrence of a plugin ID is used. TLS verification and Grafana's
@@ -77,7 +78,7 @@ backend remains for this CA issue.
 This test executes extracted official binaries and reproduces the plugin mounts;
 it does not execute NixOS switch or Podman's generated production unit. It also
 does not test an upgrade from the existing production 13.2.4 database. Required
-public NixOS CI remains pending until the review branch can be published.
+public NixOS CI runs separately on the review PR.
 
 Production merge, deployment, and the final combined health check are coordinated
 by the production task. Normal backups and NixOS rollback remain the existing

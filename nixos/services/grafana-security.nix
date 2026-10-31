@@ -59,6 +59,9 @@ let
       test -s unpack/${pin.id}/MANIFEST.txt
       # Keep every original file and executable bit covered by the signature.
       mv unpack/${pin.id} "$out"
+      # Official ZIP directories can be group/world writable. Nix rejects such
+      # outputs; remove write permissions without changing signed bytes or exec bits.
+      chmod -R go-w "$out"
     '';
 
   quadletDropin = pkgs.writeText "yunirun-grafana-security.conf" ''
