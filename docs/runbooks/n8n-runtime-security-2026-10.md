@@ -1,5 +1,41 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-10-29: 安定版 2.44.7 への更新候補
+
+PR #266 が提案した 2.45.3 は公式の試験版のため採用しない。
+同じ 2.44 系列の公式安定版 2.44.7 を使い、既存の署名済み Brotli
+1.2.1-r0 対策、Node 26.12.1、rootless 実行、証明書検証を維持する。
+以下の旧版手順は履歴であり、今回の固定値はこの節を優先する。
+
+- 公式 base: `n8nio/n8n:2.44.7@sha256:942bc274709f27f99f7c6024a785d8e8f75ac06838cabcba448abb8d9127ec7b`
+- amd64 manifest: `sha256:7a7708314f9b1d0656e2e7f697abb64fae5f76e1895f0a9ccb9036c3933a0394`
+- 配備タグ: `localhost/n8n-security:2.44.7-brotli1.2.1-overlay1`
+- rootless Podman が検査する config ID: `72e1babed6f96f68a93ebd34aa41fdee4011574cca6fd621a1e0913a73a52c7d`
+- 検証済み Docker archive の SHA-256: `d2ebea30a2f87e9c9fd2ee9c17bcab4fe983b53b80ec9f17e2dd7890ace42605`
+- 保持する旧版: `localhost/n8n-security:2.44.6-brotli1.2.1-overlay1`、config ID `60a5003bde5ec528b13daad0d017549869316fff0a66250e6557d3c60ef68a8b`
+- 公開後3日の条件: GitHub Release の公開日時を基準に **2026-10-29 06:22 UTC 以降**。
+
+公式 2.44.7 との差分は引き続き brotli-libs のみ。87 個のネイティブファイル、
+7 個の信頼関連ファイル、404 個の DB 移行定義を保存する。旧 2.44.6 とも
+ネイティブ・信頼関連・DB 移行定義は同一。既存のネイティブ・資格情報・
+Code/HTTP ノード・公開 Webhook 検証はすべて実行し、版の期待値を更新した。
+合成データによる 2.44.6 → 2.44.7 → 2.44.6 の試験では、資格情報1件と
+ワークフロー2件（公開1件）を保持し、各段階で実行と SQLite quick_check が成功した。
+実データの完全復元や外部 OAuth/業務フローを検証したとは扱わない。
+
+上流の主な変更は IMAP 再接続、SharePoint、サブワークフロー失敗処理と
+Python task runner の certifi 更新。今回のイメージには Python 実行環境と
+別体 Python runner がないため、certifi 更新がこの稼働環境の CA 問題を
+修正したとは主張しない。既存の Node/Brotli 対策は独立して維持する。
+
+先に #261 の反映・正常性確認を終える。マージ前に、この exact archive を
+既存の rootless Podman へ配置し、checksum/config ID と一時コンテナの動作を
+確認する。**CI 成功だけでは本番ホストへの配置完了にならない。**
+稼働版のイメージを保存し、直前の整合データバックアップ・復号検証を済ませる。
+実行中ワークフローがあれば停止せず待つ。設定・権限や証明書検証は変更しない。
+配備後は実 image/版、readiness、資格情報・ワークフロー数、公開状態、
+全アプリ応答を確認する。旧版へ戻す場合も、新しいデータを黙って上書きしない。
+
 As verified on 2026-10-25, n8n **2.44.6** is the latest official stable release;
 2.45.3 is beta/next. The image now derives directly from official 2.44.6 and
 changes only the separately vulnerable shared OS Brotli package. The official
