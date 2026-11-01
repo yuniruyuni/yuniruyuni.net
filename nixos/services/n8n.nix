@@ -139,6 +139,7 @@
   # 動作中に外から SIGTERM で落とされた場合も成功扱いになり Restart=on-failure
   # が効かなくなるが、そのような停止経路はここには無い。
   systemd.services.podman-n8n.serviceConfig.SuccessExitStatus = [ 0 143 ];
+  systemd.services.podman-n8n.path = lib.mkBefore [ "/run/wrappers" ];
 
   # Verify the staged image before creating the replacement container.
   # Staging instructions and the rollback archive are in the security runbook.
