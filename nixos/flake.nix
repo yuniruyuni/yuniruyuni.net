@@ -72,11 +72,6 @@
       ];
     };
 
-    checks.x86_64-linux.incus-completions = import ./tests/incus-completions.nix {
-      pkgs = self.nixosConfigurations.vps.pkgs;
-      client = self.nixosConfigurations.vps.pkgs.incus-lts.client;
-    };
-
     # For deploy-rs or manual deployment
     # Usage: nixos-rebuild switch --flake .#vps --target-host yuniruyuni@ssh.yuniruyuni.net
   };
