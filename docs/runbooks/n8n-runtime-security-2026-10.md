@@ -1,5 +1,68 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-11-02: 安定版 2.45.7 への更新候補
+
+PR #273 が提案した 2.46.3 と PR #269 の 3.0.x は、どちらも GitHub Release で
+prerelease のため採用しない。v3 系に安定版はまだない。公式の `stable` タグと
+同じ digest を指す 2.x の最新安定版 2.45.7 を使う。既存の署名済み Brotli
+1.2.1-r0 対策、Node 26.12.1、rootless 実行、証明書検証は維持する。
+
+- 公式 base: `n8nio/n8n:2.45.7@sha256:9a8d8dcea75667496695d7810d7e1fe018a65efb36cc499d347f3931b3957b5d`
+- amd64 manifest: `sha256:8e7fd6d66cef92bc0c7c049d456771d9003e9f69f9265c2238ab3f915ddbb080`
+- 配備タグ（予定）: `localhost/n8n-security:2.45.7-brotli1.2.1-overlay1`
+- config ID と Docker archive の SHA-256: **未確定**。配置する実物を作って検証した時点で記録する
+- 保持する旧版: `localhost/n8n-security:2.44.7-brotli1.2.1-overlay1`、config ID `72e1babed6f96f68a93ebd34aa41fdee4011574cca6fd621a1e0913a73a52c7d`
+- 公開後3日の条件: GitHub Release の公開日時 2026-10-30 08:24 UTC を基準に **2026-11-02 08:24 UTC 以降**。
+
+公式 2.45.7 も Node 26.12.1、Git 2.55.0、Corepack 0.36.0、Yarn 1.22.22、
+npm 11.21.1 のままで、共有ライブラリは引き続き brotli-libs 1.2.0
+（`libbrotlidec.so.1.2.0`）。overlay はまだ外せない。
+
+DB 移行定義は 404 個から 410 個に増える。追加分はすべて Agents 機能向けで、
+`MigrateAgentMcpToolPermissions`（`agents` / `agent_history` の JSON 書き換え、
+down なし）、`CreateSkillsHubTables`（新しい表の作成）、`AddInstanceScopeToAgents`
+（common と sqlite。`agents` に列を追加）、`DeleteInstanceAgentsOnRevert`、
+`CreatePromotionRunAndReviewTables`。既存のワークフロー・資格情報の表は書き換えない。
+それでも移行を元に戻す down は信用しない。戻すときはイメージだけを旧版に戻し、
+データは新しい版のものを保つ。復元が必要になった場合は、別に判断する。
+
+### 本番切り替えの残り手順（人手の作業）
+
+本番ホストへのイメージ配置は、管理者の SSH で行う人手の作業。
+GitHub Actions からは自動化していない。そのため、CI が成功しただけでは
+切り替えられない。次の順に進める。
+
+1. CI と同じレシピで、`localhost/n8n-security:2.45.7-brotli1.2.1-overlay1` を
+   linux/amd64 向けに作る。native / workflow smoke を手元で実行する。
+2. 稼働中の 2.44.7 overlay を保存する。保存先は n8n 所有・mode 0700 の新しいディレクトリ。
+   そのうえで候補を `docker save` から rootless `podman load` で配置する。
+   config ID と archive の SHA-256 を記録する。この時点ではまだ有効化しない。
+3. コミュニティノード（`@yuniruyuni/n8n-nodes-twitch`、`@yuniruyuni/n8n-nodes-discord`）を
+   読み取り専用でマウントし、候補の上で読み込めることを確認する。
+   ネットワーク、本番の資格情報、本番の DB はマウントしない。
+4. `nixos/services/n8n.nix` の image タグと preStart の config ID を、
+   2 で記録した値に更新する。この節の「未確定」も埋める。
+5. 有効化の直前に、上の手順どおりに整合のとれた暗号化バックアップを取り、
+   復号できることを確認する。その後、通常の PR から NixOS Deploy で反映する。
+6. 反映後に確認する: 実際に動いている image ID と版、`/healthz/readiness`、
+   ワークフロー数と資格情報数、有効なワークフローの登録、ほかのアプリの応答。
+
+### n8n 3.0 について（参考。今回は採用しない）
+
+[v3.0 Breaking changes](https://docs.n8n.io/changelog/v30-breaking-changes.md) のうち、
+この稼働環境に関係するもの:
+
+- `N8N_UNVERIFIED_PACKAGES_ENABLED` の既定値が `false` になる。未検証のコミュニティノード
+  （twitch / discord は未検証）は読み込まれなくなる。`true` を明示する必要がある。
+- ノード API が v3 になる（`N8N_NODES_API_VERSION=3`）。両パッケージは
+  `n8nNodesApiVersion: 1` なので、互換性を確かめる必要がある。
+- 暗号鍵ローテーションが既定で有効になる。資格情報は更新のたびに新しいデータ鍵で
+  暗号化し直される。2.40.3 以降は無効に戻せる。それでも、旧版へ戻したときに読めるかは
+  別に検証する必要がある。
+- `~/.n8n/binaryData` が `~/.n8n/storage` に改名される（既定のパスのまま使っているので、
+  対応は不要）。task runner のタイムアウトは 60 秒に下がる。SSRF の遮断範囲も広がる。
+- 公式は移行前に **Settings > Migration Report** の確認と DB のバックアップを求めている。
+
 ## 2026-10-29: 安定版 2.44.7 への更新候補
 
 PR #266 が提案した 2.45.3 は公式の試験版のため採用しない。
