@@ -1,5 +1,75 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-11-02: 安定版 2.45.7 への更新候補
+
+PR #273 が提案した 2.46.3 と PR #269 の 3.0.x は、どちらも GitHub Release で
+prerelease のため採用しない。v3 系に安定版はまだない。公式の `stable` タグと
+同じ digest を指す 2.x の最新安定版 2.45.7 を使う。既存の署名済み Brotli
+1.2.1-r0 対策、Node 26.12.1、rootless 実行、証明書検証は維持する。
+
+- 公式 base: `n8nio/n8n:2.45.7@sha256:9a8d8dcea75667496695d7810d7e1fe018a65efb36cc499d347f3931b3957b5d`
+- amd64 manifest: `sha256:8e7fd6d66cef92bc0c7c049d456771d9003e9f69f9265c2238ab3f915ddbb080`
+- 配備タグ: `localhost/n8n-security:2.45.7-brotli1.2.1-overlay1`
+- rootless Podman が検査する config ID: `df4cc387a771107cfe76e4a79ef4626e3812fe286f3f47aa64c503485e308017`
+- 検証済み Docker archive（gzip）の SHA-256: `e08b0a81fb3bd0a4a3492cc060c4b199e2b383f68c6c0485359d0dcae2e3da1a`
+- 配置記録: `/var/lib/n8n/security-stage-2457-20261102T123808Z`（n8n 所有・mode 0700。稼働していた 2.44.7 の OCI archive `n8n-2.44.7-brotli1.2.1-overlay1.oci.tar`、SHA-256 `b65dea74be3cc7948ca29b10e0b38d83a93c03e830d9c39afaefa1a5a262e305` も保存）
+- 保持する旧版: `localhost/n8n-security:2.44.7-brotli1.2.1-overlay1`、config ID `72e1babed6f96f68a93ebd34aa41fdee4011574cca6fd621a1e0913a73a52c7d`
+- 公開後3日の条件: GitHub Release の公開日時 2026-10-30 08:24 UTC を基準に **2026-11-02 08:24 UTC 以降**。
+
+公式 2.45.7 も Node 26.12.1、Git 2.55.0、Corepack 0.36.0、Yarn 1.22.22、
+npm 11.21.1 のままで、共有ライブラリは引き続き brotli-libs 1.2.0
+（`libbrotlidec.so.1.2.0`）。overlay はまだ外せない。
+
+DB 移行定義は 404 個から 410 個に増える。追加分はすべて Agents 機能向けで、
+`MigrateAgentMcpToolPermissions`（`agents` / `agent_history` の JSON 書き換え、
+down なし）、`CreateSkillsHubTables`（新しい表の作成）、`AddInstanceScopeToAgents`
+（common と sqlite。`agents` に列を追加）、`DeleteInstanceAgentsOnRevert`、
+`CreatePromotionRunAndReviewTables`。既存のワークフロー・資格情報の表は書き換えない。
+それでも移行を元に戻す down は信用しない。戻すときはイメージだけを旧版に戻し、
+データは新しい版のものを保つ。復元が必要になった場合は、別に判断する。
+
+### 本番切り替えの残り手順（人手の作業）
+
+本番ホストへのイメージ配置は、管理者の SSH で行う人手の作業。
+GitHub Actions からは自動化していない。そのため、CI が成功しただけでは
+切り替えられない。次の順に進める。
+
+1. CI と同じレシピで、`localhost/n8n-security:2.45.7-brotli1.2.1-overlay1` を
+   linux/amd64 向けに作る。今回は VPS 上の管理者ユーザ（yuniruyuni）の
+   rootless Podman で作った。n8n の image store にはビルドのキャッシュを入れない。
+   preservation / native / workflow の検査は CI と同じ内容で実行する。
+   Podman では `podman image inspect` で base と candidate の inspect を用意する。
+2. 稼働中の 2.44.7 overlay を保存する。保存先は n8n 所有・mode 0700 の新しいディレクトリ。
+   そのうえで候補を `docker save` から rootless `podman load` で配置する。
+   config ID と archive の SHA-256 を記録する。この時点ではまだ有効化しない。
+3. コミュニティノード（`@yuniruyuni/n8n-nodes-twitch`、`@yuniruyuni/n8n-nodes-discord`）を
+   読み取り専用でマウントし、候補の上で読み込めることを確認する。
+   ネットワーク、本番の資格情報、本番の DB はマウントしない。
+   2026-11-02 の結果: 2.44.7 と 2.45.7 の両方で 13 項目が読み込めた（twitch 0.1.45、discord 0.4.5、placid 0.1.6）。
+   `n8n-nodes-discord-trigger` と `n8n-nodes-discord-trigger-new` は、以前から両方の版で未インストール。
+4. `nixos/services/n8n.nix` の image タグと preStart の config ID を、
+   2 で記録した値に更新する。この節の「未確定」も埋める。
+5. 有効化の直前に、上の手順どおりに整合のとれた暗号化バックアップを取り、
+   復号できることを確認する。その後、通常の PR から NixOS Deploy で反映する。
+6. 反映後に確認する: 実際に動いている image ID と版、`/healthz/readiness`、
+   ワークフロー数と資格情報数、有効なワークフローの登録、ほかのアプリの応答。
+
+### n8n 3.0 について（参考。今回は採用しない）
+
+[v3.0 Breaking changes](https://docs.n8n.io/changelog/v30-breaking-changes.md) のうち、
+この稼働環境に関係するもの:
+
+- `N8N_UNVERIFIED_PACKAGES_ENABLED` の既定値が `false` になる。未検証のコミュニティノード
+  （twitch / discord は未検証）は読み込まれなくなる。`true` を明示する必要がある。
+- ノード API が v3 になる（`N8N_NODES_API_VERSION=3`）。両パッケージは
+  `n8nNodesApiVersion: 1` なので、互換性を確かめる必要がある。
+- 暗号鍵ローテーションが既定で有効になる。資格情報は更新のたびに新しいデータ鍵で
+  暗号化し直される。2.40.3 以降は無効に戻せる。それでも、旧版へ戻したときに読めるかは
+  別に検証する必要がある。
+- `~/.n8n/binaryData` が `~/.n8n/storage` に改名される（既定のパスのまま使っているので、
+  対応は不要）。task runner のタイムアウトは 60 秒に下がる。SSRF の遮断範囲も広がる。
+- 公式は移行前に **Settings > Migration Report** の確認と DB のバックアップを求めている。
+
 ## 2026-10-29: 安定版 2.44.7 への更新候補
 
 PR #266 が提案した 2.45.3 は公式の試験版のため採用しない。
@@ -148,8 +218,9 @@ verify its ID, runtime and shared decoder without activating it. No persistent
 registry login is needed. The service retains `pull = "never"`; replacement
 hosts must have this exact artifact staged before starting the configuration.
 
-Merge only through the normal PR process after required checks and review.
-The main branch requires one approving review; do not use owner override.
+Merge only through a normal PR after the required checks pass. This is a
+single-owner repository: main has no branch protection or required review, so
+the owner merges with `gh pr merge --admin` (squash). Do not push directly to main.
 Recheck remote main, running image and service configuration before activation
 to detect concurrent changes. Staging alone must leave active production intact.
 
@@ -159,7 +230,7 @@ to existing host and infrastructure-admin recipients. Preserve the encrypted
 n8n key and current NixOS configuration. Verify key recovery byte-for-byte
 without printing secrets, and verify the archive decrypts and is readable.
 Restart on every failure path. Do not use the general backup helper, which
-also deletes old remote backups. Do not stop production merely to wait for review.
+also deletes old remote backups. Do not stop production while waiting for CI.
 
 After normal NixOS deployment, verify the actual active image ID, n8n/Node,
 shared decoder, helper commands, origin `/healthz/readiness`, workflow and
