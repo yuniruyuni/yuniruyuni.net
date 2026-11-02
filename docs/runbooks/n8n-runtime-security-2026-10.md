@@ -1,5 +1,50 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-11-02: コミュニティノード更新の調査（未実施）
+
+依頼: `@yuniruyuni/n8n-nodes-twitch` を 0.1.45 から 0.1.47 に、
+`@yuniruyuni/n8n-nodes-discord` を 0.4.5 から 0.4.7 に更新する。
+
+### インストール方式
+
+Nix やイメージでは宣言していない。n8n の UI から入れたもので、n8n が自分で管理している。
+
+- 実体は `/var/lib/n8n/data/nodes/`（コンテナ内の `~/.n8n/nodes`）。`package.json` と `node_modules` を n8n の npm が管理する。
+- DB の `installed_packages` と `installed_nodes` が版を記録している。
+  記録は placid 0.1.6、discord 0.4.5（2026-07-21 導入）、twitch 0.1.45（2026-08-04 導入）。
+- 正規の更新経路は、n8n の community package のライフサイクルだけ。
+  UI の **Settings > Community nodes > Update** か、公開 API の
+  `PATCH /api/v1/community-packages/{name}`（scope は `communityPackage:update`）を使う。
+  どちらも owner の認証が必要。CLI の `n8n community-node` は uninstall しかできない。
+- `node_modules` へ直接 `npm install` してはいけない。DB の記録と実体の版がずれる。
+  DB を手で書き換えることもしない。
+
+### 版の差分（npm の公開 tarball で確認）
+
+- 依存、peerDependencies（`n8n-workflow: *`）、`n8nNodesApiVersion: 1` は変わらない。
+- 実行される JS の差分は、トリガー系のノードから `usableAsTool: true` を外したことだけ。
+  対象は Twitch Trigger、Discord Trigger、Discord Webhook Event Trigger。
+  これでトリガーは AI Agent のツールとして選べなくなる。
+- 本番のワークフローと履歴で、これらの `...TriggerTool` 型を使うものは 0 件。
+  twitch / discord のノードを使うワークフローは 6 件で、影響はない。
+
+### 更新の手順（owner 認証が使えるときに行う）
+
+1. 実行中のワークフローがないことを確かめる。そのうえで n8n を短時間止め、
+   `/var/lib/n8n/data`（`nodes` を含む）と `/etc/nixos` の暗号化バックアップを取る。
+   2026-11-02 と同じ手順で、宛先は VPS と infrastructure-admin。
+   復号は `/var/lib/agenix/age-key.txt` で行う。ssh のホスト鍵は age1 の宛先の identity として使えない。
+   全ファイルのハッシュの一致と、n8n の鍵の復元を確かめる。
+   ワークフロー数・有効数・資格情報数を記録する。
+2. UI または公開 API で、twitch を 0.1.47 に、discord を 0.4.7 に更新する。
+3. `podman-n8n` を再起動し、次を確かめる。
+   - unit が active であること。
+   - `/healthz` と `/healthz/readiness`。
+   - `installed_packages` の版。
+   - コミュニティノードの読み込み検査（13 項目）。
+   - ワークフロー数・有効数・資格情報数が更新前と同じであること。
+   - 起動ログに有効化のエラーがないこと。
+
 ## 2026-11-02: 安定版 2.45.7 への更新候補
 
 PR #273 が提案した 2.46.3 と PR #269 の 3.0.x は、どちらも GitHub Release で
