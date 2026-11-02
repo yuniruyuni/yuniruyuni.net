@@ -9,8 +9,10 @@ prerelease のため採用しない。v3 系に安定版はまだない。公式
 
 - 公式 base: `n8nio/n8n:2.45.7@sha256:9a8d8dcea75667496695d7810d7e1fe018a65efb36cc499d347f3931b3957b5d`
 - amd64 manifest: `sha256:8e7fd6d66cef92bc0c7c049d456771d9003e9f69f9265c2238ab3f915ddbb080`
-- 配備タグ（予定）: `localhost/n8n-security:2.45.7-brotli1.2.1-overlay1`
-- config ID と Docker archive の SHA-256: **未確定**。配置する実物を作って検証した時点で記録する
+- 配備タグ: `localhost/n8n-security:2.45.7-brotli1.2.1-overlay1`
+- rootless Podman が検査する config ID: `df4cc387a771107cfe76e4a79ef4626e3812fe286f3f47aa64c503485e308017`
+- 検証済み Docker archive（gzip）の SHA-256: `e08b0a81fb3bd0a4a3492cc060c4b199e2b383f68c6c0485359d0dcae2e3da1a`
+- 配置記録: `/var/lib/n8n/security-stage-2457-20261102T123808Z`（n8n 所有・mode 0700。稼働していた 2.44.7 の OCI archive `n8n-2.44.7-brotli1.2.1-overlay1.oci.tar`、SHA-256 `b65dea74be3cc7948ca29b10e0b38d83a93c03e830d9c39afaefa1a5a262e305` も保存）
 - 保持する旧版: `localhost/n8n-security:2.44.7-brotli1.2.1-overlay1`、config ID `72e1babed6f96f68a93ebd34aa41fdee4011574cca6fd621a1e0913a73a52c7d`
 - 公開後3日の条件: GitHub Release の公開日時 2026-10-30 08:24 UTC を基準に **2026-11-02 08:24 UTC 以降**。
 
@@ -33,13 +35,18 @@ GitHub Actions からは自動化していない。そのため、CI が成功�
 切り替えられない。次の順に進める。
 
 1. CI と同じレシピで、`localhost/n8n-security:2.45.7-brotli1.2.1-overlay1` を
-   linux/amd64 向けに作る。native / workflow smoke を手元で実行する。
+   linux/amd64 向けに作る。今回は VPS 上の管理者ユーザ（yuniruyuni）の
+   rootless Podman で作った。n8n の image store にはビルドのキャッシュを入れない。
+   preservation / native / workflow の検査は CI と同じ内容で実行する。
+   Podman では `podman image inspect` で base と candidate の inspect を用意する。
 2. 稼働中の 2.44.7 overlay を保存する。保存先は n8n 所有・mode 0700 の新しいディレクトリ。
    そのうえで候補を `docker save` から rootless `podman load` で配置する。
    config ID と archive の SHA-256 を記録する。この時点ではまだ有効化しない。
 3. コミュニティノード（`@yuniruyuni/n8n-nodes-twitch`、`@yuniruyuni/n8n-nodes-discord`）を
    読み取り専用でマウントし、候補の上で読み込めることを確認する。
    ネットワーク、本番の資格情報、本番の DB はマウントしない。
+   2026-11-02 の結果: 2.44.7 と 2.45.7 の両方で 13 項目が読み込めた（twitch 0.1.45、discord 0.4.5、placid 0.1.6）。
+   `n8n-nodes-discord-trigger` と `n8n-nodes-discord-trigger-new` は、以前から両方の版で未インストール。
 4. `nixos/services/n8n.nix` の image タグと preStart の config ID を、
    2 で記録した値に更新する。この節の「未確定」も埋める。
 5. 有効化の直前に、上の手順どおりに整合のとれた暗号化バックアップを取り、
@@ -211,8 +218,9 @@ verify its ID, runtime and shared decoder without activating it. No persistent
 registry login is needed. The service retains `pull = "never"`; replacement
 hosts must have this exact artifact staged before starting the configuration.
 
-Merge only through the normal PR process after required checks and review.
-The main branch requires one approving review; do not use owner override.
+Merge only through a normal PR after the required checks pass. This is a
+single-owner repository: main has no branch protection or required review, so
+the owner merges with `gh pr merge --admin` (squash). Do not push directly to main.
 Recheck remote main, running image and service configuration before activation
 to detect concurrent changes. Staging alone must leave active production intact.
 
@@ -222,7 +230,7 @@ to existing host and infrastructure-admin recipients. Preserve the encrypted
 n8n key and current NixOS configuration. Verify key recovery byte-for-byte
 without printing secrets, and verify the archive decrypts and is readable.
 Restart on every failure path. Do not use the general backup helper, which
-also deletes old remote backups. Do not stop production merely to wait for review.
+also deletes old remote backups. Do not stop production while waiting for CI.
 
 After normal NixOS deployment, verify the actual active image ID, n8n/Node,
 shared decoder, helper commands, origin `/healthz/readiness`, workflow and

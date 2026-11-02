@@ -75,7 +75,7 @@
         # Official stable n8n with only the signed OS Brotli package corrected.
         # Node, native modules and helpers are inherited unchanged; see
         # docs/runbooks/n8n-runtime-security-2026-10.md.
-        image = "localhost/n8n-security:2.44.7-brotli1.2.1-overlay1";
+        image = "localhost/n8n-security:2.45.7-brotli1.2.1-overlay1";
         pull = "never";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
@@ -145,9 +145,9 @@
   # Staging instructions and the rollback archive are in the security runbook.
   systemd.services.podman-n8n.preStart = lib.mkBefore ''
     actual=$(${pkgs.podman}/bin/podman image inspect \
-      localhost/n8n-security:2.44.7-brotli1.2.1-overlay1 --format '{{.Id}}')
+      localhost/n8n-security:2.45.7-brotli1.2.1-overlay1 --format '{{.Id}}')
     actual="''${actual#sha256:}"
-    test "$actual" = "72e1babed6f96f68a93ebd34aa41fdee4011574cca6fd621a1e0913a73a52c7d"
+    test "$actual" = "df4cc387a771107cfe76e4a79ef4626e3812fe286f3f47aa64c503485e308017"
   '';
 
   systemd.services.podman-n8n.serviceConfig.ExecStartPost = [
