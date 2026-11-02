@@ -27,6 +27,7 @@
     # すべて 127.0.0.1 にだけ bind する。見るときは ssh のポート転送を使う:
     #   ssh -N -L 8090:127.0.0.1:8090 yuniruyuni.net
     observability.enable = true;
+    observability.grafanaImage = "docker.io/grafana/grafana:13.2.5@sha256:9f7aa1e1e3246aade5792d35a738049f7f32f89cd51d1956cf426a4e86268a84";
 
     # アラートの送り先。n8n の webhook に寄せる。
     #
