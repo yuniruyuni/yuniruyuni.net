@@ -28,14 +28,6 @@
         # Main configuration
         ./configuration.nix
 
-        { nixpkgs.overlays = [
-          (import ./pkgs/go-security.nix)
-          (import ./pkgs/incus-completions.nix)
-          (import ./pkgs/rich-tests.nix)
-          (import ./pkgs/cloudflared-tests.nix)
-          (import ./pkgs/libadwaita-tests.nix)
-        ]; }
-
         # Agenix module for secrets
         agenix.nixosModules.default
 
@@ -78,11 +70,6 @@
         # Secrets configuration
         ./secrets.nix
       ];
-    };
-
-    checks.x86_64-linux.incus-completions = import ./tests/incus-completions.nix {
-      pkgs = self.nixosConfigurations.vps.pkgs;
-      client = self.nixosConfigurations.vps.pkgs.incus-lts.client;
     };
 
     # For deploy-rs or manual deployment
