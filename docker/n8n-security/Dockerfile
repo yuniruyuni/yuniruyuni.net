@@ -1,12 +1,12 @@
 # Official stable n8n, with only the separately vulnerable OS Brotli package
 # replaced. Node, n8n, native modules, helpers and runtime configuration remain
 # upstream's. This artifact is validated for linux/amd64.
-FROM alpine:3.24.3@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a AS package-tools
+FROM alpine:3.24.4@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf AS package-tools
 RUN apk add --no-cache apk-tools-static brotli=1.2.1-r0
 ADD --checksum=sha256:62a7e37e43bbfc1f8525a00ad2125fd5897135dc93b849733884cb78ffd8e26c https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/brotli-libs-1.2.1-r0.apk /packages/brotli-libs-1.2.1-r0.apk
 RUN apk verify /packages/brotli-libs-1.2.1-r0.apk
 
-FROM n8nio/n8n:2.45.7@sha256:9a8d8dcea75667496695d7810d7e1fe018a65efb36cc499d347f3931b3957b5d
+FROM n8nio/n8n:2.48.1@sha256:5e022f23ef9eaac3f51467e021610c218ed7eb5b41a05edb388ef1c8e00e009f
 USER root
 # BuildKit mounts keep the package installer, archive and test CLI out of the
 # final image. Signature verification uses the base's existing Alpine key.
