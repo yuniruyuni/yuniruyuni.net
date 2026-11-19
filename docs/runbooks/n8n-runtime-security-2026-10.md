@@ -1,5 +1,25 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-11-20: レシピを安定版 2.48.4 に更新（本番は未切り替え）
+
+PR #277（Renovate）で `docker/n8n-security/Dockerfile` の base を 2.48.4 にした。
+2.48.4 は GitHub Release で prerelease ではなく、公開は 2026-11-13 09:41 UTC。
+公開後3日の条件は満たしている。
+
+- 公式 base: `n8nio/n8n:2.48.4@sha256:63bdcfdea7e0d21152a7ad8f62e6622658c5eae3835e7515dbd9b610cdb76111`
+- 公式 2.48.4 は brotli-libs 1.2.1-r0（`libbrotlidec.so.1.2.1`）を同梱している。
+  overlay が入れ替えるパッケージはなくなった。Node は 26.13.0、npm は 11.21.2 に上がった。
+  Git 2.55.0、Corepack 0.36.0、Yarn 1.22.22 は変わらない。`native-smoke.cjs` の固定値も合わせた。
+- そのため `preservation-check.cjs` は、base が修正済みのときは
+  「パッケージの差分が 0 件」であることを確かめるようにした。
+  base が未修正のときは、これまでどおり brotli-libs だけの差分を求める。
+- 本番は `localhost/n8n-security:2.45.7-brotli1.2.1-overlay1` のまま。
+  `nixos/services/n8n.nix` は変えていない。
+
+次に本番を切り替えるときは、overlay をやめて公式イメージを digest 固定で
+直接使うかを先に決める。overlay を続ける場合の手順は、下の 2.45.7 の節と同じ。
+DB 移行定義の差分は、まだ確認していない。
+
 ## 2026-11-02: コミュニティノード更新の調査（未実施）
 
 依頼: `@yuniruyuni/n8n-nodes-twitch` を 0.1.45 から 0.1.47 に、
