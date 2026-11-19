@@ -12,7 +12,9 @@ for (const key of ['User', 'Env', 'Entrypoint', 'Cmd', 'WorkingDir', 'ExposedPor
 assert.deepEqual(candidateImage.RootFS.Layers.slice(0, baseImage.RootFS.Layers.length), baseImage.RootFS.Layers);
 assert.equal(candidateImage.RootFS.Layers.length, baseImage.RootFS.Layers.length + 1);
 const changed = Object.keys({ ...base.packages, ...candidate.packages }).filter(name => base.packages[name] !== candidate.packages[name]);
-assert.deepEqual(changed, ['brotli-libs']);
+// Once the official base ships the corrected package itself, the overlay must change no package at all.
+const baseAlreadyCorrected = base.packages['brotli-libs'] === '1.2.1-r0';
+assert.deepEqual(changed, baseAlreadyCorrected ? [] : ['brotli-libs']);
 assert.equal(candidate.packages['brotli-libs'], '1.2.1-r0');
 for (const key of ['critical', 'trust', 'native', 'migrations']) assert.deepEqual(candidate[key], base[key], `Official ${key} files changed`);
 console.log(JSON.stringify({ changedPackages: changed, nativeFilesPreserved: Object.keys(base.native).length, trustFilesPreserved: Object.keys(base.trust).length, addedLayers: 1 }));

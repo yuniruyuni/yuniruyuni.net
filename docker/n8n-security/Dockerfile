@@ -30,5 +30,5 @@ RUN --network=none \
       > /usr/local/share/runtime-security/brotli.txt
 USER node
 LABEL net.yuniruyuni.security.brotli-version="1.2.1-r0" \
-      org.opencontainers.image.base.name="n8nio/n8n:2.45.7" \
-      org.opencontainers.image.base.digest="sha256:9a8d8dcea75667496695d7810d7e1fe018a65efb36cc499d347f3931b3957b5d"
+      org.opencontainers.image.base.name="n8nio/n8n:2.48.4" \
+      org.opencontainers.image.base.digest="sha256:63bdcfdea7e0d21152a7ad8f62e6622658c5eae3835e7515dbd9b610cdb76111"
