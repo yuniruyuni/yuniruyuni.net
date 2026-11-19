@@ -8,7 +8,8 @@ PR #277（Renovate）で `docker/n8n-security/Dockerfile` の base を 2.48.4 �
 
 - 公式 base: `n8nio/n8n:2.48.4@sha256:63bdcfdea7e0d21152a7ad8f62e6622658c5eae3835e7515dbd9b610cdb76111`
 - 公式 2.48.4 は brotli-libs 1.2.1-r0（`libbrotlidec.so.1.2.1`）を同梱している。
-  overlay が入れ替えるパッケージはなくなった。Node は 26.13.0、Git は 2.55.0。
+  overlay が入れ替えるパッケージはなくなった。Node は 26.13.0、npm は 11.21.2 に上がった。
+  Git 2.55.0、Corepack 0.36.0、Yarn 1.22.22 は変わらない。`native-smoke.cjs` の固定値も合わせた。
 - そのため `preservation-check.cjs` は、base が修正済みのときは
   「パッケージの差分が 0 件」であることを確かめるようにした。
   base が未修正のときは、これまでどおり brotli-libs だけの差分を求める。
