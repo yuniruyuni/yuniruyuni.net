@@ -6,7 +6,7 @@ RUN apk add --no-cache apk-tools-static brotli=1.2.1-r0
 ADD --checksum=sha256:62a7e37e43bbfc1f8525a00ad2125fd5897135dc93b849733884cb78ffd8e26c https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/brotli-libs-1.2.1-r0.apk /packages/brotli-libs-1.2.1-r0.apk
 RUN apk verify /packages/brotli-libs-1.2.1-r0.apk
 
-FROM n8nio/n8n:2.48.4@sha256:63bdcfdea7e0d21152a7ad8f62e6622658c5eae3835e7515dbd9b610cdb76111
+FROM n8nio/n8n:2.48.6@sha256:eafe48609be09a2d56dd3628b29932a12c2e81a06ac5a309205652ea36146619
 USER root
 # BuildKit mounts keep the package installer, archive and test CLI out of the
 # final image. Signature verification uses the base's existing Alpine key.
@@ -30,5 +30,5 @@ RUN --network=none \
       > /usr/local/share/runtime-security/brotli.txt
 USER node
 LABEL net.yuniruyuni.security.brotli-version="1.2.1-r0" \
-      org.opencontainers.image.base.name="n8nio/n8n:2.48.4" \
-      org.opencontainers.image.base.digest="sha256:63bdcfdea7e0d21152a7ad8f62e6622658c5eae3835e7515dbd9b610cdb76111"
+      org.opencontainers.image.base.name="n8nio/n8n:2.48.6" \
+      org.opencontainers.image.base.digest="sha256:eafe48609be09a2d56dd3628b29932a12c2e81a06ac5a309205652ea36146619"
