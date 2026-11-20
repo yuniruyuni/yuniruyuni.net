@@ -1,5 +1,18 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-11-20: レシピを v2 系の安定最新版 2.48.6 に更新（本番は未切り替え）
+
+2.48.6 は npm の `latest` / `stable` と GitHub Release の latest が指す版で、
+公開は 2026-11-19 08:29 UTC。所有者の指示で、公開後3日の条件を待たずにレシピへ入れた。
+本番へ切り替えるのは **2026-11-22 08:29 UTC 以降** にする。
+
+- 公式 base: `n8nio/n8n:2.48.6@sha256:eafe48609be09a2d56dd3628b29932a12c2e81a06ac5a309205652ea36146619`
+- amd64 manifest: `sha256:26039962d4f725e590a4bfc81aabc2f22cf9d94b5a8cf47c4da825da14129503`
+- brotli-libs は 1.2.1-r0 を同梱。overlay とのパッケージ差分は 0 件、ネイティブファイルは 91 個。
+- Node 26.13.0、Git 2.55.0、Corepack 0.36.0、Yarn 1.22.22。npm は 11.20.0（2.48.4 は 11.21.2）。
+- preservation / native / workflow の検査は、手元の podman（linux/amd64）でも通した。
+- 本番は `localhost/n8n-security:2.45.7-brotli1.2.1-overlay1` のまま。
+
 ## 2026-11-20: レシピを安定版 2.48.4 に更新（本番は未切り替え）
 
 PR #277（Renovate）で `docker/n8n-security/Dockerfile` の base を 2.48.4 にした。
