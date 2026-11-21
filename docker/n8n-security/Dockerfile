@@ -6,7 +6,7 @@ RUN apk add --no-cache apk-tools-static brotli=1.2.1-r0
 ADD --checksum=sha256:62a7e37e43bbfc1f8525a00ad2125fd5897135dc93b849733884cb78ffd8e26c https://dl-cdn.alpinelinux.org/alpine/v3.24/main/x86_64/brotli-libs-1.2.1-r0.apk /packages/brotli-libs-1.2.1-r0.apk
 RUN apk verify /packages/brotli-libs-1.2.1-r0.apk
 
-FROM n8nio/n8n:2.48.7@sha256:fabce3e9678a07d2dde83bd8f5124017f3ec457d0a3fc6b63bb4cec465d63861
+FROM n8nio/n8n:2.49.1@sha256:634c293fee4a4813bbb27b36a3c08d6e1057db0c78e1a83d7734afa3283483f3
 USER root
 # BuildKit mounts keep the package installer, archive and test CLI out of the
 # final image. Signature verification uses the base's existing Alpine key.
