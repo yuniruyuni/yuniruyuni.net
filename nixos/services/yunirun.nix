@@ -10,6 +10,8 @@
 { config, ... }:
 
 {
+  imports = [ ./yuniview-ingest.nix ];
+
   services.yunirun = {
     enable = true;
     domain = "yuniruyuni.net";
