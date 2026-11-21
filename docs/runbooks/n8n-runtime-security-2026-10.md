@@ -1,5 +1,30 @@
 # n8n October 2026 runtime security overlay
 
+## 2026-11-22: overlay をやめ、公式 2.48.5 を digest 固定で本番に入れる
+
+本番の 2.45.7 には、2026-11-13 公開の勧告 4 件（修正は 2.48.3 以降）が当たっていなかった。
+owner アカウントの乗っ取り（high）、トリガーによる資格情報の越権利用、
+AWS Bedrock ノードの SSRF 保護の抜け、連携ノードの意図しない宛先への認証付きリクエスト。
+
+公式イメージは 2.48.4 から brotli-libs 1.2.1-r0 を同梱している。overlay が入れ替える
+パッケージはなくなったので、下の「Rollback and overlay retirement」の条件に従って overlay をやめた。
+`docker/n8n-security/` と `n8n-image.yml` は削除した。
+
+- 本番の image: `n8nio/n8n:2.48.5@sha256:c0ea1246a81a34ce8e2b3cfb1f718b97de64b0a1b3747ad24d6d431826bb71ad`
+- 公開は 2026-11-18 08:50 UTC。公開後3日の条件を満たす安定版のうち最新のもの。
+  2.48.6 / 2.48.7 は条件が明けてから Renovate の PR で上げる。
+- `nixos/services/n8n.nix` は `pull = "never"` と preStart の config ID 照合を外した。
+  digest 固定なので、中身の同一性は podman が保証する。
+- 検査の記録: `/var/lib/n8n/stage-2485-20261121T185353Z`（n8n 所有・mode 0700）。
+  公式イメージを n8n ユーザの rootless Podman で先に pull し、ネットワークなしで検査した。
+  - native: Node の Brotli、`libbrotlidec.so.1.2.1`、libcurl / Git のリンク、ネイティブモジュールの読み込みが通った。
+    Git 2.55.0、Corepack 0.36.0、Yarn 1.22.22、npm 11.21.2。
+  - workflow: 使い捨てデータでの資格情報の往復、ワークフロー実行、SQLite 移行、webhook が通った。
+  - コミュニティノード: 2.45.7 overlay と 2.48.5 の両方で 13 項目が読み込め、結果は完全に一致した
+    （twitch 0.1.45、discord 0.4.5、placid 0.1.6）。
+- 戻すとき: この変更を revert する。`localhost/n8n-security:2.45.7-brotli1.2.1-overlay1`
+  （config ID `df4cc387…`）は n8n の image store に残してある。データは新しい版のものを保つ。
+
 ## 2026-11-21: レシピを v2 系の安定最新版 2.48.7 に更新（本番は未切り替え）
 
 Renovate の PR #280 は 2.49.0 を提案したが、2.49 系は npm の `beta` で、
