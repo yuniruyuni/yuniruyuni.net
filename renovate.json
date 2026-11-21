@@ -26,7 +26,7 @@
         "/nixos/services/n8n\\.nix$/"
       ],
       "matchStrings": [
-        "image\\s*=\\s*\"(?<depName>n8nio/n8n):(?<currentValue>[^\"]+)\""
+        "image\\s*=\\s*\"(?<depName>n8nio/n8n):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?\""
       ],
       "datasourceTemplate": "docker"
     },

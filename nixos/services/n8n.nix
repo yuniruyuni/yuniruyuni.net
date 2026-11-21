@@ -72,11 +72,15 @@
     backend = "podman";
     containers = {
       n8n = {
-        # Official stable n8n with only the signed OS Brotli package corrected.
-        # Node, native modules and helpers are inherited unchanged; see
-        # docs/runbooks/n8n-runtime-security-2026-10.md.
-        image = "localhost/n8n-security:2.45.7-brotli1.2.1-overlay1";
-        pull = "never";
+        # 公式の安定版を digest 固定でそのまま使う。
+        #
+        # 2026-10 から 2026-11 までは、OS の Brotli だけを差し替えた手元ビルドの
+        # overlay (localhost/n8n-security) を使っていた。公式 2.48.4 以降は修正済みの
+        # brotli-libs 1.2.1-r0 を同梱しており、overlay は不要になった。経緯は
+        # docs/runbooks/n8n-runtime-security-2026-10.md。
+        #
+        # 2.49 系のようなベータ (GitHub Release で prerelease) は採用しない。
+        image = "n8nio/n8n:2.48.5@sha256:c0ea1246a81a34ce8e2b3cfb1f718b97de64b0a1b3747ad24d6d431826bb71ad";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
         volumes = [
@@ -118,6 +122,8 @@
   # 世代を残さないのは、公開されている image なのでいつでも引き直せるから。
   # 手元に置いておく理由が無い。
   #
+  # overlay 時代の localhost/n8n-security は対象外。戻し先として手で残してある。
+  #
   # 起動した後に走らせる。先に消すと、これから使う版まで対象になる。
   # 稼働中のものは podman が拒むので、実際に消えるのは使っていない版だけ。
   # 停止時の exit 143 を成功として扱う。
@@ -140,15 +146,6 @@
   # が効かなくなるが、そのような停止経路はここには無い。
   systemd.services.podman-n8n.serviceConfig.SuccessExitStatus = [ 0 143 ];
   systemd.services.podman-n8n.path = lib.mkBefore [ "/run/wrappers" ];
-
-  # Verify the staged image before creating the replacement container.
-  # Staging instructions and the rollback archive are in the security runbook.
-  systemd.services.podman-n8n.preStart = lib.mkBefore ''
-    actual=$(${pkgs.podman}/bin/podman image inspect \
-      localhost/n8n-security:2.45.7-brotli1.2.1-overlay1 --format '{{.Id}}')
-    actual="''${actual#sha256:}"
-    test "$actual" = "df4cc387a771107cfe76e4a79ef4626e3812fe286f3f47aa64c503485e308017"
-  '';
 
   systemd.services.podman-n8n.serviceConfig.ExecStartPost = [
     ("-" + pkgs.writeShellScript "n8n-prune-old-images" ''
