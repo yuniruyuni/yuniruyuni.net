@@ -68,6 +68,10 @@
     # id は不変なので、リポジトリ名を変えてもここを直す必要はない。実測方法:
     #   gh api repos/<owner>/<repo>/actions/oidc/customization/sub
     apps = {
+      yuniview = {
+        repo = "yuniruyuni/yuniview";
+        principal = "repo:yuniruyuni@85034901/yuniview@1466857937:ref:refs/heads/main";
+      };
       template = {
         repo = "yuniruyuni/template";
         principal = "repo:yuniruyuni@85034901/template@1203258260:ref:refs/heads/main";
