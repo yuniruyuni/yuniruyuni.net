@@ -36,6 +36,10 @@ resource "cloudflare_zero_trust_access_policy" "owner" {
 
 locals {
   access_applications = {
+    yuniview = {
+      name   = "yuniview"
+      domain = "yuniview.${var.zone_name}"
+    }
     n8n = {
       name   = "n8n"
       domain = "n8n.${var.zone_name}"
