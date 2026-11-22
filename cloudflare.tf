@@ -22,7 +22,8 @@ locals {
     wildcard = { name = "*", type = "A", target = "vps", proxied = true }
 
     # VPS Tunnel (CNAME to main tunnel)
-    n8n = { name = "n8n", type = "CNAME", target = "tunnel_main", proxied = true }
+    yuniview = { name = "yuniview", type = "CNAME", target = "tunnel_main", proxied = true }
+    n8n      = { name = "n8n", type = "CNAME", target = "tunnel_main", proxied = true }
 
     # SSH via VPS Tunnel (proxied through Cloudflare for Zero Trust access)
     ssh = { name = "ssh", type = "CNAME", target = "tunnel_main", proxied = true }
@@ -80,6 +81,17 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
 
   config = {
     ingress = [
+      {
+        hostname = "yuniview.${var.zone_name}"
+        service  = "http://127.0.0.1:8270"
+        origin_request = {
+          access = {
+            required  = true
+            team_name = "yuniruyuni"
+            aud_tag   = [cloudflare_zero_trust_access_application.apps["yuniview"].aud]
+          }
+        }
+      },
       # n8n service
       {
         hostname = "n8n.${var.zone_name}"
