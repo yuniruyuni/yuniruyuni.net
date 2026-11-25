@@ -80,7 +80,7 @@
         # docs/runbooks/n8n-runtime-security-2026-10.md。
         #
         # 2.49 系のようなベータ (GitHub Release で prerelease) は採用しない。
-        image = "n8nio/n8n:2.48.5@sha256:c0ea1246a81a34ce8e2b3cfb1f718b97de64b0a1b3747ad24d6d431826bb71ad";
+        image = "n8nio/n8n:2.49.5@sha256:c349b24d6e242b4ea14d75e6f1a90c50e348cf4b1c4512b4a0a50219ead6533d";
         autoStart = true;
         ports = [ "127.0.0.1:5678:5678" ];
         volumes = [
