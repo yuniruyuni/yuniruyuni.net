@@ -127,6 +127,12 @@ let
       | ${pkgs.jq}/bin/jq -r '.[] | [.app,.name,.owner,.socketDir,.ownerPasswordFile] | @tsv' \
       > "$D/targets"
 
+    # 全ての表の行を実際に数える。count(*) を表ごとに組み立てて回す。
+    EXACT_ROWS="select 'rows ' || coalesce(sum((xpath('/row/c/text()',
+        query_to_xml(format('select count(*) as c from %I.%I', schemaname, relname),
+                     false, true, ''')))[1]::text::bigint), 0)
+      from pg_stat_user_tables;"
+
     FAIL=0
     COUNT=0
     while IFS=$'\t' read -r APP DB OWNER SOCK PWFILE; do
@@ -138,12 +144,36 @@ let
 
       q() { ${pkgs.postgresql_18}/bin/psql -h "$SOCK" -U "$OWNER" -d "$1" -tAqc "$2" 2>/dev/null; }
 
-      TABLES=$(q "$DB" "select count(*) from pg_stat_user_tables")
-      ROWS=$(q "$DB" "select coalesce(sum(n_live_tup),0) from pg_stat_user_tables")
-
-      if ! ${pkgs.postgresql_18}/bin/pg_dump -h "$SOCK" -U "$OWNER" -d "$DB" \
-             -Fc -f "$D/$APP.dump" 2>"$D/e"; then
-        echo "$APP: 採取に失敗"; ${pkgs.coreutils}/bin/head -3 "$D/e"; FAIL=1; continue
+      # 採取と数え上げを同じ snapshot で行う。
+      #
+      # 以前は稼働中の DB の n_live_tup を先に読み、その後で pg_dump していた。
+      # 書き込みが続く DB (yuniview は 1 日に数十万行増える) では、読んでから
+      # 採るまでの間に行が増え、戻した側と必ず食い違う。n_live_tup 自体も統計の
+      # 推定値で、正確な行数ではない。戻せているのに NG になり、演習の指標が
+      # 途絶えていた (2026-11-23, 24, 26)。
+      #
+      # psql でトランザクションを開いたまま snapshot を書き出し、pg_dump に
+      # 同じものを使わせる。数える側も同じトランザクションの中なので、
+      # 「採ったもの」と「数えたもの」が 1 行もずれない。
+      SNAP=$(${pkgs.postgresql_18}/bin/psql -h "$SOCK" -U "$OWNER" -d "$DB" \
+               -tAq -v ON_ERROR_STOP=1 2>"$D/e" <<SQL
+    begin isolation level repeatable read;
+    select pg_export_snapshot() as snap \gset
+    \setenv DRILL_SNAPSHOT :snap
+    \! ${pkgs.postgresql_18}/bin/pg_dump -h "$SOCK" -U "$OWNER" -d "$DB" --snapshot="\$DRILL_SNAPSHOT" -Fc -f "$D/$APP.dump" 2>"$D/dump.err"
+    \echo dump :SHELL_EXIT_CODE
+    select 'tables ' || count(*) from pg_stat_user_tables;
+    $EXACT_ROWS
+    commit;
+    SQL
+      )
+      DUMPRC=$(echo "$SNAP" | ${pkgs.gawk}/bin/awk '$1=="dump"{print $2}')
+      TABLES=$(echo "$SNAP" | ${pkgs.gawk}/bin/awk '$1=="tables"{print $2}')
+      ROWS=$(echo "$SNAP" | ${pkgs.gawk}/bin/awk '$1=="rows"{print $2}')
+      if [ "''${DUMPRC:-1}" != "0" ] || [ -z "$TABLES" ] || [ -z "$ROWS" ]; then
+        echo "$APP: 採取に失敗"
+        ${pkgs.coreutils}/bin/head -3 "$D/e" "$D/dump.err" 2>/dev/null
+        FAIL=1; continue
       fi
 
       ${pkgs.postgresql_18}/bin/dropdb -h "$SOCK" -U "$OWNER" --if-exists "$DRILL" 2>/dev/null
@@ -153,7 +183,7 @@ let
       ERRS=$(${pkgs.gnugrep}/bin/grep -c "^pg_restore: error" "$D/e") || ERRS=0
 
       TABLES2=$(q "$DRILL" "select count(*) from pg_stat_user_tables")
-      ROWS2=$(q "$DRILL" "select coalesce(sum(n_live_tup),0) from pg_stat_user_tables")
+      ROWS2=$(q "$DRILL" "$EXACT_ROWS" | ${pkgs.gawk}/bin/awk '$1=="rows"{print $2}')
       # 表だけ出来て中身が空でも「戻せた」に見えるので行数まで見る。アプリの
       # ロールが読めるかも見る。ここが噛み合わないと、復元は成功したのに
       # アプリだけ動かない状態になる。
